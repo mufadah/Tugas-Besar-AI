@@ -1,12 +1,13 @@
 {
   "name": "tubes-ai",
   "version": "1.0.0",
-  "description": "Backend Server dengan WebSocket untuk Monitoring ESP32 - Tugas Besar AI",
-  "main": "index.js",
+  "description": "Backend Serverless - Tugas Besar AI",
+  "main": "netlify/functions/api.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "build": "echo 'Building project...'"
   },
   "keywords": [],
   "author": "",
@@ -18,7 +19,7 @@
     "express": "^4.19.2",
     "mongodb": "^6.8.0",
     "mongoose": "^8.5.2",
-    "ws": "^8.18.0"
+    "serverless-http": "^3.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"

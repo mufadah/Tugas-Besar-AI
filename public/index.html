@@ -49,7 +49,7 @@
         .hum-card { border-left: 5px solid #06b6d4; }
         .value-display { font-size: 2.75rem; font-weight: 700; line-height: 1; }
         
-        .table-container { max-height: 350px; overflow-y: auto;border:1px solid ; border-color: var(--border-color) !important; }
+        .table-container { max-height: 350px; overflow-y: auto; border: 1px solid ; border-color: var(--border-color) !important; }
         
         .theme-toggle-btn {
             background: transparent;
@@ -132,7 +132,7 @@
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card card-custom p-4">
-                    <h5 class="card-title mb-3 fw-bold"><i class="fa-solid fa-chart-line me-2 text-primary"></i>Grafik Tren Real-time</h5>
+                    <h5 class="card-title mb-3 fw-bold"><i class="fa-solid fa-chart-line me-2 text-primary"></i>Grafik Tren Real-time (Polling)</h5>
                     <div style="position: relative; height:300px; width:100%">
                         <canvas id="realtimeChart"></canvas>
                     </div>
@@ -199,8 +199,7 @@
         // ==========================================
         let dataHistori = [];
         let waktuTerakhirUpdate = 0; 
-        const BATAS_OFFLINE = 15000; // Jika data macet lebih dari 15 detik dianggap offline
-        let socket;
+        const BATAS_OFFLINE = 20000; // Jika data di DB tidak update > 20 detik, dianggap offline
 
         const ctx = document.getElementById('realtimeChart').getContext('2d');
         const configChart = new Chart(ctx, {
@@ -284,8 +283,8 @@
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = ''; 
 
-            // Tampilkan 15 data terbaru di tabel log (data terbaru di urutan atas)
-            [...dataHistori].reverse().slice(0, 15).forEach(item => {
+            // Tampilkan data di tabel log (terbaru di urutan atas)
+            [...dataHistori].reverse().forEach(item => {
                 tbody.innerHTML += `<tr>
                     <td class="fw-medium text-muted">${item.timestamp}</td>
                     <td>${item.ruangan}</td>
@@ -295,46 +294,52 @@
                 </tr>`;
             });
 
-            // Tampilkan nilai live pada card atas
+            // Tampilkan nilai live paling baru pada card atas
             const dataTerbaru = dataHistori[dataHistori.length - 1];
             document.getElementById('liveTemp').innerText = dataTerbaru.suhu.toFixed(1);
             document.getElementById('liveHum').innerText = dataTerbaru.kelembapan.toFixed(1);
         }
 
         function updateGrafik() {
-            // Update Grafik dengan maksimal 15 data terbaru
-            const dataGrafik = dataHistori.slice(-15);
-            configChart.data.labels = dataGrafik.map(item => item.timestamp);
-            configChart.data.datasets[0].data = dataGrafik.map(item => item.suhu);
-            configChart.data.datasets[1].data = dataGrafik.map(item => item.kelembapan);
+            configChart.data.labels = dataHistori.map(item => item.timestamp);
+            configChart.data.datasets[0].data = dataHistori.map(item => item.suhu);
+            configChart.data.datasets[1].data = dataHistori.map(item => item.kelembapan);
             configChart.update();
         }
 
-        // Ambil data inisial awal saat web dibuka pertama kali agar tidak kosong
-        async function loadDataAwal() {
+        // ==========================================
+        // 4. POLLING REFRESH DATA (PENGGANTI WEBSOCKET)
+        // ==========================================
+        async function pollDataSensor() {
             try {
-                const response = await fetch('http://localhost:3000/api/get-sensor');
+                // Menggunakan path relatif agar dibaca oleh fungsi Serverless Netlify
+                const response = await fetch('/api/get-sensor');
                 const arrayData = await response.json();
 
                 if (arrayData && arrayData.length > 0) {
-                    waktuTerakhirUpdate = Date.now();
+                    // Ambil record paling baru dari database untuk pengecekan status online/offline
+                    const dataPalingBaru = arrayData[arrayData.length - 1];
+                    waktuTerakhirUpdate = new Date(dataPalingBaru.waktu_update).getTime();
+
+                    // Map ke array lokal dashboard
                     dataHistori = arrayData.map(item => ({
                         timestamp: new Date(item.waktu_update).toLocaleTimeString(),
                         ruangan: item.ruangan,
                         suhu: parseFloat(item.suhu),
                         kelembapan: parseFloat(item.kelembapan)
                     }));
+
                     updateGrafik();
                     updateDashboardUI();
                 }
             } catch (error) {
-                console.error("Gagal load data awal dari database:", error);
+                console.error("Gagal melakukan polling data sensor:", error);
             }
         }
 
         async function ambilLog30Menit() {
             try {
-                const response = await fetch('http://localhost:3000/api/log-30menit');
+                const response = await fetch('/api/log-30menit');
                 const data = await response.json();
                 const tbody = document.getElementById('tableLog30Menit');
                 tbody.innerHTML = '';
@@ -347,64 +352,8 @@
                     </tr>`;
                 });
             } catch (e) {
-                console.error("Gagal load data 30 menit", e);
+                console.error("Gagal mengambil log agregasi 30 menit:", e);
             }
-        }
-
-        // ==========================================
-        // 4. SETUP INTI: KONEKSI WEBSOCKET DASHBOARD
-        // ==========================================
-        function initWebSocket() {
-            // Hubungkan ke port server Node.js kamu
-            socket = new WebSocket('ws://localhost:3000');
-
-            socket.onopen = () => {
-                console.log('Dashboard berhasil terhubung ke WebSocket Server!');
-            };
-
-            // MENANGKAP DATA MASUK DARI ESP32 LEWAT SERVER
-            socket.onmessage = (event) => {
-                try {
-                    const parsedData = JSON.parse(event.data);
-                    
-                    // Kita filter, abaikan jika pesan merupakan feedback response sukses/error server
-                    if (parsedData.status === "success" || parsedData.status === "error") return;
-
-                    // Update detak waktu terakhir data masuk untuk status alat
-                    waktuTerakhirUpdate = Date.now();
-
-                    // Format data agar sesuai format dashboard local array
-                    const dataBaru = {
-                        timestamp: new Date().toLocaleTimeString(),
-                        ruangan: parsedData.ruangan || "Ruangan Tidak Diketahui",
-                        suhu: parseFloat(parsedData.suhu),
-                        kelembapan: parseFloat(parsedData.kelembapan)
-                    };
-
-                    // Masukkan ke array penampung data lokal
-                    dataHistori.push(dataBaru);
-                    
-                    // Batasi data histori lokal agar browser tidak lemot
-                    if(dataHistori.length > 50) dataHistori.shift();
-
-                    // Perbarui grafik dan tampilan tabel secara instan!
-                    updateGrafik();
-                    updateDashboardUI();
-
-                } catch (error) {
-                    // Blok catch untuk menangani string pesan biasa non-JSON jika ada
-                    console.log("Pesan text server:", event.data);
-                }
-            };
-
-            socket.onclose = () => {
-                console.log('Koneksi WebSocket terputus. Mencoba rekoneksi dalam 3 detik...');
-                setTimeout(initWebSocket, 3000); // Rekoneksi otomatis jika server drop/restart
-            };
-
-            socket.onerror = (error) => {
-                console.error('WebSocket Error:', error);
-            };
         }
 
         function cekStatusKoneksi() {
@@ -415,25 +364,27 @@
                 statusBadge.className = 'badge bg-secondary px-3 py-2 fs-6';
                 statusBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Menunggu Data...';
             } else if (sekarang - waktuTerakhirUpdate > BATAS_OFFLINE) {
+                // Jika selisih waktu sekarang dengan data terakhir di DB > 20 detik, alat dianggap mati
                 statusBadge.className = 'badge bg-danger px-3 py-2 fs-6';
                 statusBadge.innerHTML = '<i class="fa-solid fa-circle-xmark me-2"></i>Offline (Alat Terputus)';
-                document.getElementById('liveTemp').classList.replace('text-danger', 'text-muted');
-                document.getElementById('liveHum').classList.replace('text-info', 'text-muted');
+                document.getElementById('liveTemp').className = 'value-display text-muted';
+                document.getElementById('liveHum').className = 'value-display text-muted';
             } else {
                 statusBadge.className = 'badge bg-success px-3 py-2 fs-6';
                 statusBadge.innerHTML = '<i class="fa-solid fa-wifi me-2"></i>Online (Terhubung)';
-                document.getElementById('liveTemp').classList.replace('text-muted', 'text-danger');
-                document.getElementById('liveHum').classList.replace('text-muted', 'text-info');
+                document.getElementById('liveTemp').className = 'value-display text-danger';
+                document.getElementById('liveHum').className = 'value-display text-info';
             }
         }
 
-        // --- Alur Eksekusi Aplikasi ---
-        loadDataAwal();      // 1. Ambil log data awal dari DB MongoDB
-        initWebSocket();      // 2. Aktifkan penangkap live-data WebSocket
-        
-        setInterval(cekStatusKoneksi, 1000); // Cek status alat setiap detik
-        setInterval(ambilLog30Menit, 60000 * 5); // Perbarui log agregasi per 5 menit sekali agar ringan
-        ambilLog30Menit(); // Eksekusi pertama kali log agregasi
+        // --- Alur Eksekusi Pengganti Jalur WebSocket ---
+        pollDataSensor();           // Ambil data pertama kali saat web dibuka
+        ambilLog30Menit();          // Ambil agregasi awal
+
+        // Set Interval Aktivitas Polling Berkala
+        setInterval(pollDataSensor, 5000);       // Tarik data baru dari MongoDB setiap 5 detik
+        setInterval(cekStatusKoneksi, 1000);     // Validasi status online/offline setiap 1 detik
+        setInterval(ambilLog30Menit, 60000 * 5); // Segarkan tabel histori 30 menit setiap 5 menit sekali
 
         // ==========================================
         // 5. EXPORT DATA KE CSV
