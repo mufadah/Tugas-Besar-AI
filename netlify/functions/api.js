@@ -90,7 +90,8 @@ router.post('/sensor', async (req, res) => {
 // [GET] Mengirimkan data paling baru ke Website
 router.get('/sensor', async (req, res) => {
   try {
-    const dataTerakhir = await Sensor.findOne().sort({ waktu: -1 });
+    const dataTerakhir = await Sensor.find().sort({ waktu: -1 }).limit(20);
+    res.status(200).json(dataTerakhir.reverse());
     if (!dataTerakhir) {
       return res.status(404).json({ message: 'Database masih kosong' });
     }

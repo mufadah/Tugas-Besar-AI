@@ -310,20 +310,24 @@
         // ==========================================
         // 4. POLLING REFRESH DATA (PENGGANTI WEBSOCKET)
         // ==========================================
+        // UBAH BAGIAN INI DI index.html
+        // ==========================================
+        // 4. POLLING REFRESH DATA (Disesuaikan)
+        // ==========================================
         async function pollDataSensor() {
             try {
-                // Menggunakan path relatif agar dibaca oleh fungsi Serverless Netlify
-                const response = await fetch('/api/get-sensor');
+                // Endpoint yang benar sesuai api.js
+                const response = await fetch('/api/sensor');
                 const arrayData = await response.json();
 
-                if (arrayData && arrayData.length > 0) {
-                    // Ambil record paling baru dari database untuk pengecekan status online/offline
+                if (Array.isArray(arrayData) && arrayData.length > 0) {
+                    // Ambil waktu dari data paling baru (menggunakan field 'waktu' sesuai skema di api.js)
                     const dataPalingBaru = arrayData[arrayData.length - 1];
-                    waktuTerakhirUpdate = new Date(dataPalingBaru.waktu_update).getTime();
+                    waktuTerakhirUpdate = new Date(dataPalingBaru.waktu).getTime();
 
-                    // Map ke array lokal dashboard
+                    // Map ke array lokal
                     dataHistori = arrayData.map(item => ({
-                        timestamp: new Date(item.waktu_update).toLocaleTimeString(),
+                        timestamp: new Date(item.waktu).toLocaleTimeString(),
                         ruangan: item.ruangan,
                         suhu: parseFloat(item.suhu),
                         kelembapan: parseFloat(item.kelembapan)
