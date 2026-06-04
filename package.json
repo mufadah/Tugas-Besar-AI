@@ -1,0 +1,25 @@
+{
+  "name": "tubes",
+  "version": "1.0.0",
+  "description": "��#\u0000 \u0000b\u0000a\u0000c\u0000k\u0000e\u0000n\u0000d\u0000-\u0000r\u0000s\u0000-\u0000b\u0000a\u0000y\u0000i\u0000\r\u0000 \u0000",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon index.js",
+    "start": "node --openssl-legacy-provider index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mongodb": "^7.2.0",
+    "mongoose": "^9.6.3",
+    "nodemon": "^3.1.14",
+    "serverless-http": "^4.0.0",
+    "ws": "^8.21.0"
+  }
+}

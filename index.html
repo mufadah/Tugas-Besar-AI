@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="id" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Monitoring Suhu & Kelembapan - Ruang Bayi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --text-main: #334155;
+            --border-color: #e2e8f0;
+        }
+
+        [data-bs-theme="dark"] {
+            --bg-body: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --border-color: #334155;
+        }
+
+        body { 
+            background-color: var(--bg-body); 
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .navbar-custom {
+            background-color: var(--bg-card) !important;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.3s ease;
+        }
+        .navbar-brand { font-weight: 700; color: #1e40af !important; }
+        [data-bs-theme="dark"] .navbar-brand { color: #60a5fa !important; }
+
+        .card-custom { 
+            border: none; 
+            border-radius: 12px; 
+            background-color: var(--bg-card);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); 
+            transition: transform 0.2s, background-color 0.3s ease; 
+        }
+        .card-custom:hover { transform: translateY(-2px); }
+        .temp-card { border-left: 5px solid #ef4444; }
+        .hum-card { border-left: 5px solid #06b6d4; }
+        .value-display { font-size: 2.75rem; font-weight: 700; line-height: 1; }
+        
+        .table-container { max-height: 350px; overflow-y: auto;border:1px solid ; border-color: var(--border-color) !important; }
+        
+        .theme-toggle-btn {
+            background: transparent;
+            border: 2px solid var(--border-color);
+            color: var(--text-main);
+            border-radius: 50px;
+            padding: 5px 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .theme-toggle-btn:hover { background-color: var(--border-color); }
+
+        .status-badge { padding: 0.35em 0.65em; font-size: 0.75em; font-weight: 600; border-radius: 50rem; }
+        [data-bs-theme="light"] .bg-normal { background-color: #dcfce7; color: #15803d; }
+        [data-bs-theme="light"] .bg-warning-custom { background-color: #fef9c3; color: #a16207; }
+        [data-bs-theme="light"] .bg-danger-custom { background-color: #fee2e2; color: #b91c1c; }
+        [data-bs-theme="dark"] .bg-normal { background-color: #065f46; color: #a7f3d0; }
+        [data-bs-theme="dark"] .bg-warning-custom { background-color: #854d0e; color: #fef08a; }
+        [data-bs-theme="dark"] .bg-danger-custom { background-color: #991b1b; color: #fecaca; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-custom py-3 mb-4">
+        <div class="container d-flex justify-content-between align-items-center">
+            <a class="navbar-brand" href="#">
+                <i class="fa-solid fa-heart-pulse text-danger me-2"></i>Hospital IoT Monitoring
+            </a>
+            <div class="d-flex align-items-center gap-3">
+                <button id="themeToggle" class="theme-toggle-btn">
+                    <i class="fa-solid fa-moon me-1"></i> Mode
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mb-5">
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card card-custom p-3 border-0">
+                    <div class="d-flex align-items-center">
+                        <h6 class="m-0 me-3 text-uppercase fw-bold text-muted">Status Alat ESP32:</h6>
+                        <span id="espStatus" class="badge bg-secondary px-3 py-2 fs-6">
+                            <i class="fa-solid fa-spinner fa-spin me-2"></i>Menunggu Data...
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6 mb-3 mb-md-0">
+                <div class="card card-custom temp-card p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-uppercase text-muted fw-bold m-0" style="font-size: 0.85rem;">Suhu Saat Ini</h6>
+                        <i class="fa-solid fa-thermometer-half text-danger fs-4"></i>
+                    </div>
+                    <div class="d-flex align-items-baseline">
+                        <div class="value-display text-danger" id="liveTemp">--</div>
+                        <span class="fs-4 fw-medium text-secondary ms-1">°C</span>
+                    </div>
+                    <div class="mt-2 text-muted small"><i class="fa-solid fa-circle-info me-1"></i> Rentang Normal: 36.5°C - 37.5°C</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card card-custom hum-card p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-uppercase text-muted fw-bold m-0" style="font-size: 0.85rem;">Kelembapan</h6>
+                        <i class="fa-solid fa-droplet text-info fs-4"></i>
+                    </div>
+                    <div class="d-flex align-items-baseline">
+                        <div class="value-display text-info" id="liveHum">--</div>
+                        <span class="fs-4 fw-medium text-secondary ms-1">%</span>
+                    </div>
+                    <div class="mt-2 text-muted small"><i class="fa-solid fa-circle-info me-1"></i> Rentang Normal: 40% - 60%</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card card-custom p-4">
+                    <h5 class="card-title mb-3 fw-bold"><i class="fa-solid fa-chart-line me-2 text-primary"></i>Grafik Tren Real-time</h5>
+                    <div style="position: relative; height:300px; width:100%">
+                        <canvas id="realtimeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card card-custom p-4">
+                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-3 gap-2">
+                        <h5 class="card-title m-0 fw-bold"><i class="fa-solid fa-clock-history me-2 text-primary"></i>Log Histori Data Terakhir</h5>
+                        <button class="btn btn-success btn-sm px-3 py-2 fw-semibold" id="btnExport">
+                            <i class="fa-solid fa-file-excel me-2"></i>Export CSV
+                        </button>
+                    </div>
+                    <div class="table-responsive table-container border rounded">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead id="tableHead" class="table-light sticky-top">
+                                <tr>
+                                    <th>Waktu</th>
+                                    <th>Ruangan</th>
+                                    <th>Suhu (°C)</th>
+                                    <th>Kelembapan (%)</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                <tr><td colspan="5" class="text-center py-4 text-muted">Belum ada data terekam...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card card-custom p-4">
+                    <h5 class="card-title mb-3 fw-bold">
+                        <i class="fa-solid fa-clock me-2 text-primary"></i>Histori Rata-rata (Per 30 Menit)
+                    </h5>
+                    <div class="table-responsive table-container border rounded">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th style="width: 40%;">Waktu (Blok 30 Menit)</th>
+                                    <th style="width: 30%;">Rata-rata Suhu (°C)</th>
+                                    <th style="width: 30%;">Rata-rata Kelembapan (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableLog30Menit">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. INISIALISASI VARIABEL & GRAFIK
+        // ==========================================
+        let dataHistori = [];
+        let waktuTerakhirUpdate = 0; 
+        const BATAS_OFFLINE = 15000; // Jika data macet lebih dari 15 detik dianggap offline
+        let socket;
+
+        const ctx = document.getElementById('realtimeChart').getContext('2d');
+        const configChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'Suhu (°C)', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 3, tension: 0.3, fill: true, yAxisID: 'y' },
+                    { label: 'Kelembapan (%)', data: [], borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.1)', borderWidth: 3, tension: 0.3, fill: true, yAxisID: 'y1' }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#64748b' }, grid: { color: '#e2e8f0' } },
+                    y: { type: 'linear', position: 'left', title: { display: true, text: 'Suhu (°C)' }, ticks: { color: '#64748b' }, grid: { color: '#e2e8f0' } },
+                    y1: { type: 'linear', position: 'right', title: { display: true, text: 'Kelembapan (%)' }, ticks: { color: '#64748b' }, grid: { drawOnChartArea: false } }
+                },
+                plugins: { legend: { labels: { color: '#64748b' } } }
+            }
+        });
+
+        // ==========================================
+        // 2. LOGIKA DARK/LIGHT MODE
+        // ==========================================
+        const themeToggle = document.getElementById('themeToggle');
+        const htmlTag = document.documentElement;
+        const iconTheme = themeToggle.querySelector('i');
+        const tableHead = document.getElementById('tableHead');
+
+        function updateChartColors(theme) {
+            const textColor = theme === 'dark' ? '#94a3b8' : '#64748b';
+            const gridColor = theme === 'dark' ? '#334155' : '#e2e8f0';
+
+            configChart.options.scales.x.ticks.color = textColor;
+            configChart.options.scales.x.grid.color = gridColor;
+            configChart.options.scales.y.ticks.color = textColor;
+            configChart.options.scales.y.grid.color = gridColor;
+            configChart.options.scales.y1.ticks.color = textColor;
+            configChart.options.plugins.legend.labels.color = textColor;
+            configChart.update();
+        }
+
+        function terapkanTema(theme) {
+            htmlTag.setAttribute('data-bs-theme', theme);
+            if (theme === 'dark') {
+                iconTheme.className = 'fa-solid fa-sun me-1';
+                iconTheme.style.color = '#fbbf24';
+                tableHead.className = 'table-dark sticky-top';
+            } else {
+                iconTheme.className = 'fa-solid fa-moon me-1';
+                iconTheme.style.color = 'inherit';
+                tableHead.className = 'table-light sticky-top';
+            }
+            updateChartColors(theme);
+        }
+
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        terapkanTema(savedTheme);
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = htmlTag.getAttribute('data-bs-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            terapkanTema(newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+
+        // ==========================================
+        // 3. LOGIKA UNTUK MENANGKAP DATA & UPDATE UI
+        // ==========================================
+        function dapatkanStatus(suhu, kelembapan) {
+            if (suhu < 36.5 || suhu > 37.5 || kelembapan < 40 || kelembapan > 60) {
+                if (suhu > 38.0 || kelembapan < 30) return '<span class="status-badge bg-danger-custom">Kritis</span>';
+                return '<span class="status-badge bg-warning-custom">Peringatan</span>';
+            }
+            return '<span class="status-badge bg-normal">Normal</span>';
+        }
+
+        function updateDashboardUI() {
+            if (dataHistori.length === 0) return;
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = ''; 
+
+            // Tampilkan 15 data terbaru di tabel log (data terbaru di urutan atas)
+            [...dataHistori].reverse().slice(0, 15).forEach(item => {
+                tbody.innerHTML += `<tr>
+                    <td class="fw-medium text-muted">${item.timestamp}</td>
+                    <td>${item.ruangan}</td>
+                    <td class="fw-bold text-danger">${item.suhu}</td>
+                    <td class="fw-bold text-info">${item.kelembapan}</td>
+                    <td>${dapatkanStatus(item.suhu, item.kelembapan)}</td>
+                </tr>`;
+            });
+
+            // Tampilkan nilai live pada card atas
+            const dataTerbaru = dataHistori[dataHistori.length - 1];
+            document.getElementById('liveTemp').innerText = dataTerbaru.suhu.toFixed(1);
+            document.getElementById('liveHum').innerText = dataTerbaru.kelembapan.toFixed(1);
+        }
+
+        function updateGrafik() {
+            // Update Grafik dengan maksimal 15 data terbaru
+            const dataGrafik = dataHistori.slice(-15);
+            configChart.data.labels = dataGrafik.map(item => item.timestamp);
+            configChart.data.datasets[0].data = dataGrafik.map(item => item.suhu);
+            configChart.data.datasets[1].data = dataGrafik.map(item => item.kelembapan);
+            configChart.update();
+        }
+
+        // Ambil data inisial awal saat web dibuka pertama kali agar tidak kosong
+        async function loadDataAwal() {
+            try {
+                const response = await fetch('http://localhost:3000/api/get-sensor');
+                const arrayData = await response.json();
+
+                if (arrayData && arrayData.length > 0) {
+                    waktuTerakhirUpdate = Date.now();
+                    dataHistori = arrayData.map(item => ({
+                        timestamp: new Date(item.waktu_update).toLocaleTimeString(),
+                        ruangan: item.ruangan,
+                        suhu: parseFloat(item.suhu),
+                        kelembapan: parseFloat(item.kelembapan)
+                    }));
+                    updateGrafik();
+                    updateDashboardUI();
+                }
+            } catch (error) {
+                console.error("Gagal load data awal dari database:", error);
+            }
+        }
+
+        async function ambilLog30Menit() {
+            try {
+                const response = await fetch('http://localhost:3000/api/log-30menit');
+                const data = await response.json();
+                const tbody = document.getElementById('tableLog30Menit');
+                tbody.innerHTML = '';
+
+                data.forEach(item => {
+                    tbody.innerHTML += `<tr>
+                        <td>${new Date(item._id.year, item._id.month-1, item._id.day, item._id.hour, item._id.minute).toLocaleString()}</td>
+                        <td class="fw-bold text-danger">${item.rataSuhu.toFixed(1)}</td>
+                        <td class="fw-bold text-info">${item.rataKelembapan.toFixed(1)}</td>
+                    </tr>`;
+                });
+            } catch (e) {
+                console.error("Gagal load data 30 menit", e);
+            }
+        }
+
+        // ==========================================
+        // 4. SETUP INTI: KONEKSI WEBSOCKET DASHBOARD
+        // ==========================================
+        function initWebSocket() {
+            // Hubungkan ke port server Node.js kamu
+            socket = new WebSocket('ws://localhost:3000');
+
+            socket.onopen = () => {
+                console.log('Dashboard berhasil terhubung ke WebSocket Server!');
+            };
+
+            // MENANGKAP DATA MASUK DARI ESP32 LEWAT SERVER
+            socket.onmessage = (event) => {
+                try {
+                    const parsedData = JSON.parse(event.data);
+                    
+                    // Kita filter, abaikan jika pesan merupakan feedback response sukses/error server
+                    if (parsedData.status === "success" || parsedData.status === "error") return;
+
+                    // Update detak waktu terakhir data masuk untuk status alat
+                    waktuTerakhirUpdate = Date.now();
+
+                    // Format data agar sesuai format dashboard local array
+                    const dataBaru = {
+                        timestamp: new Date().toLocaleTimeString(),
+                        ruangan: parsedData.ruangan || "Ruangan Tidak Diketahui",
+                        suhu: parseFloat(parsedData.suhu),
+                        kelembapan: parseFloat(parsedData.kelembapan)
+                    };
+
+                    // Masukkan ke array penampung data lokal
+                    dataHistori.push(dataBaru);
+                    
+                    // Batasi data histori lokal agar browser tidak lemot
+                    if(dataHistori.length > 50) dataHistori.shift();
+
+                    // Perbarui grafik dan tampilan tabel secara instan!
+                    updateGrafik();
+                    updateDashboardUI();
+
+                } catch (error) {
+                    // Blok catch untuk menangani string pesan biasa non-JSON jika ada
+                    console.log("Pesan text server:", event.data);
+                }
+            };
+
+            socket.onclose = () => {
+                console.log('Koneksi WebSocket terputus. Mencoba rekoneksi dalam 3 detik...');
+                setTimeout(initWebSocket, 3000); // Rekoneksi otomatis jika server drop/restart
+            };
+
+            socket.onerror = (error) => {
+                console.error('WebSocket Error:', error);
+            };
+        }
+
+        function cekStatusKoneksi() {
+            const statusBadge = document.getElementById('espStatus');
+            const sekarang = Date.now();
+
+            if (waktuTerakhirUpdate === 0) {
+                statusBadge.className = 'badge bg-secondary px-3 py-2 fs-6';
+                statusBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Menunggu Data...';
+            } else if (sekarang - waktuTerakhirUpdate > BATAS_OFFLINE) {
+                statusBadge.className = 'badge bg-danger px-3 py-2 fs-6';
+                statusBadge.innerHTML = '<i class="fa-solid fa-circle-xmark me-2"></i>Offline (Alat Terputus)';
+                document.getElementById('liveTemp').classList.replace('text-danger', 'text-muted');
+                document.getElementById('liveHum').classList.replace('text-info', 'text-muted');
+            } else {
+                statusBadge.className = 'badge bg-success px-3 py-2 fs-6';
+                statusBadge.innerHTML = '<i class="fa-solid fa-wifi me-2"></i>Online (Terhubung)';
+                document.getElementById('liveTemp').classList.replace('text-muted', 'text-danger');
+                document.getElementById('liveHum').classList.replace('text-muted', 'text-info');
+            }
+        }
+
+        // --- Alur Eksekusi Aplikasi ---
+        loadDataAwal();      // 1. Ambil log data awal dari DB MongoDB
+        initWebSocket();      // 2. Aktifkan penangkap live-data WebSocket
+        
+        setInterval(cekStatusKoneksi, 1000); // Cek status alat setiap detik
+        setInterval(ambilLog30Menit, 60000 * 5); // Perbarui log agregasi per 5 menit sekali agar ringan
+        ambilLog30Menit(); // Eksekusi pertama kali log agregasi
+
+        // ==========================================
+        // 5. EXPORT DATA KE CSV
+        // ==========================================
+        document.getElementById('btnExport').addEventListener('click', function() {
+            if(dataHistori.length === 0) { alert("Data kosong!"); return; }
+            let csvContent = "data:text/csv;charset=utf-8,Timestamp,Ruangan,Suhu (C),Kelembapan (%)\r\n";
+            dataHistori.forEach(item => { csvContent += `"${item.timestamp}","${item.ruangan}",${item.suhu},${item.kelembapan}\r\n`; });
+            const link = document.createElement("a");
+            link.href = encodeURI(csvContent);
+            link.download = `Log_Sensor_${new Date().toISOString().slice(0,10)}.csv`;
+            link.click();
+        });
+    </script>
+</body>
+</html>
