@@ -6,17 +6,44 @@ const cors = require('cors');
 const app = express();
 const router = express.Router();
 
-// Middleware dasar
 app.use(cors());
 app.use(express.json());
 
 // =============================================
-//  1. KONEKSI KE MONGODB ATLAS
+//  1. KONEKSI MONGODB DENGAN POLA CACHED (ANTI-TIMEOUT)
 // =============================================
-// Pastikan MONGODB_URI sudah diisi di menu Environment Variables Netlify
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Berhasil terhubung ke MongoDB Atlas!'))
-  .catch((err) => console.error('Gagal terhubung ke MongoDB:', err));
+let isConnected = false;
+
+async function connectDatabase() {
+  if (isConnected) {
+    console.log('=> Menggunakan koneksi database yang sudah ada (Cached).');
+    return;
+  }
+
+  console.log('=> Membuka koneksi baru ke MongoDB Atlas...');
+  try {
+    const db = await mongoose.connect(process.env.MONGODB_URI, {
+      // Opsi tambahan agar Mongoose langsung melempar error jika koneksi gagal,
+      // bukannya melakukan buffering selama 10 detik yang bikin timeout.
+      bufferCommands: false, 
+    });
+    isConnected = db.connections[0].readyState;
+    console.log(' Berhasil terhubung ke MongoDB Atlas!');
+  } catch (err) {
+    console.error('❌ Gagal terhubung ke MongoDB:', err.message);
+    throw err;
+  }
+}
+
+// Middleware otomatis untuk memastikan database terhubung sebelum membaca rute API
+app.use(async (req, res, next) => {
+  try {
+    await connectDatabase();
+    next();
+  } catch (err) {
+    res.status(500).json({ error: "Gagal tersambung ke database cloud: " + err.message });
+  }
+});
 
 // =============================================
 //  2. SKEMA DATABASE (MODEL)
@@ -28,14 +55,13 @@ const SensorSchema = new mongoose.Schema({
   waktu: { type: Date, default: Date.now }
 });
 
-// Mencegah error penumpukan model saat serverless me-restart fungsi
 const Sensor = mongoose.models.Sensor || mongoose.model('Sensor', SensorSchema);
 
 // =============================================
 //  3. RUTE API (ROUTER)
 // =============================================
 
-// [POST] Menerima data sensor yang dikirim dari ESP32
+// [POST] Menerima data sensor dari ESP32
 router.post('/sensor', async (req, res) => {
   try {
     const { ruangan, suhu, kelembapan } = req.body;
@@ -46,7 +72,8 @@ router.post('/sensor', async (req, res) => {
       kelembapan: kelembapan
     });
     
-    await dataBaru.save();
+    // Matikan buffer pada instance ini demi keamanan serverless
+    await dataBaru.save({ checkKeys: false });
     res.status(201).json({ message: 'Data ESP32 sukses disimpan ke cloud!' });
   } catch (error) {
     console.error('Error saat simpan data:', error);
@@ -54,16 +81,13 @@ router.post('/sensor', async (req, res) => {
   }
 });
 
-// [GET] Mengirimkan data paling baru ke Website (script.js)
+// [GET] Mengirimkan data paling baru ke Website
 router.get('/sensor', async (req, res) => {
   try {
-    // Cari 1 data dengan waktu terbaru (sort -1)
     const dataTerakhir = await Sensor.findOne().sort({ waktu: -1 });
-    
     if (!dataTerakhir) {
       return res.status(404).json({ message: 'Database masih kosong' });
     }
-    
     res.status(200).json(dataTerakhir);
   } catch (error) {
     console.error('Error saat mengambil data:', error);
@@ -71,12 +95,7 @@ router.get('/sensor', async (req, res) => {
   }
 });
 
-// =============================================
-//  4. MOUNTING & EXPORT (WAJIB UNTUK NETLIFY)
-// =============================================
-// Trik agar API terbaca baik dengan atau tanpa redirect netlify.toml
 app.use('/api', router);
 app.use('/.netlify/functions/api', router);
 
-// Membungkus aplikasi Express menjadi fungsi Serverless
 module.exports.handler = serverless(app);
