@@ -6,7 +6,11 @@ const cors = require('cors');
 const app = express();
 const router = express.Router();
 
-app.use(cors());
+app.use(cors({
+  origin: '*', // Izinkan semua akses untuk debugging
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type']
+}));
 app.use(express.json());
 
 // =============================================
@@ -55,8 +59,8 @@ const SensorSchema = new mongoose.Schema({
   waktu: { type: Date, default: Date.now }
 });
 
-// Tambahkan parameter ketiga untuk nama koleksi yang spesifik
-const Sensor = mongoose.models.Sensor || mongoose.model('Sensor', SensorSchema, 'sensor_data');
+// Hapus parameter ketiga agar Mongoose kembali menggunakan nama standar 'sensors'
+const Sensor = mongoose.models.Sensor || mongoose.model('Sensor', SensorSchema);
 
 // =============================================
 //  3. RUTE API (ROUTER)
