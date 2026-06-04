@@ -1,25 +1,26 @@
 {
-  "name": "tubes",
+  "name": "tubes-ai",
   "version": "1.0.0",
-  "description": "��#\u0000 \u0000b\u0000a\u0000c\u0000k\u0000e\u0000n\u0000d\u0000-\u0000r\u0000s\u0000-\u0000b\u0000a\u0000y\u0000i\u0000\r\u0000 \u0000",
+  "description": "Backend Server dengan WebSocket untuk Monitoring ESP32 - Tugas Besar AI",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon index.js",
-    "start": "node --openssl-legacy-provider index.js"
+    "start": "node index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "mongodb": "^7.2.0",
-    "mongoose": "^9.6.3",
-    "nodemon": "^3.1.14",
-    "serverless-http": "^4.0.0",
-    "ws": "^8.21.0"
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongodb": "^6.8.0",
+    "mongoose": "^8.5.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
   }
 }
