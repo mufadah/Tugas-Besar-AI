@@ -55,7 +55,8 @@ const SensorSchema = new mongoose.Schema({
   waktu: { type: Date, default: Date.now }
 });
 
-const Sensor = mongoose.models.Sensor || mongoose.model('Sensor', SensorSchema);
+// Tambahkan parameter ketiga untuk nama koleksi yang spesifik
+const Sensor = mongoose.models.Sensor || mongoose.model('Sensor', SensorSchema, 'sensor_data');
 
 // =============================================
 //  3. RUTE API (ROUTER)
@@ -63,6 +64,7 @@ const Sensor = mongoose.models.Sensor || mongoose.model('Sensor', SensorSchema);
 
 // [POST] Menerima data sensor dari ESP32
 router.post('/sensor', async (req, res) => {
+  console.log("Data diterima dari ESP32:", req.body);
   try {
     const { ruangan, suhu, kelembapan } = req.body;
     
