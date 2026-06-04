@@ -4,18 +4,23 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 
 const app = express();
+const router = express.Router();
 
-// Middleware
+// Middleware dasar
 app.use(cors());
 app.use(express.json());
 
-// 1. Koneksi ke MongoDB Atlas menggunakan Environment Variable Netlify
-const mongoURI = process.env.MONGODB_URI;
-mongoose.connect(mongoURI)
-  .then(() => console.log('MongoDB Terhubung...'))
-  .catch(err => console.error('Gagal koneksi MongoDB:', err));
+// =============================================
+//  1. KONEKSI KE MONGODB ATLAS
+// =============================================
+// Pastikan MONGODB_URI sudah diisi di menu Environment Variables Netlify
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('Berhasil terhubung ke MongoDB Atlas!'))
+  .catch((err) => console.error('Gagal terhubung ke MongoDB:', err));
 
-// 2. Definisi Schema & Model Sensor (Sesuaikan dengan skema Anda)
+// =============================================
+//  2. SKEMA DATABASE (MODEL)
+// =============================================
 const SensorSchema = new mongoose.Schema({
   ruangan: String,
   suhu: Number,
@@ -23,39 +28,55 @@ const SensorSchema = new mongoose.Schema({
   waktu: { type: Date, default: Date.now }
 });
 
-// Pastikan nama collection-nya sesuai (misal: "sensors" atau "datasensor")
+// Mencegah error penumpukan model saat serverless me-restart fungsi
 const Sensor = mongoose.models.Sensor || mongoose.model('Sensor', SensorSchema);
 
 // =============================================
-//   RUTE API (BACKEND)
+//  3. RUTE API (ROUTER)
 // =============================================
 
-// 🟢 RUTE POST: Menerima data dari ESP32
-app.post('/api/sensor', async (req, res) => {
+// [POST] Menerima data sensor yang dikirim dari ESP32
+router.post('/sensor', async (req, res) => {
   try {
+    const { ruangan, suhu, kelembapan } = req.body;
+    
     const dataBaru = new Sensor({
-      ruangan: req.body.ruangan,
-      suhu: req.body.suhu,
-      kelembapan: req.body.kelembapan
+      ruangan: ruangan || "Ruang Bayi 1 (NICU)",
+      suhu: suhu,
+      kelembapan: kelembapan
     });
     
     await dataBaru.save();
-    res.status(201).json({ message: 'Data berhasil disimpan ke MongoDB!' });
+    res.status(201).json({ message: 'Data ESP32 sukses disimpan ke cloud!' });
   } catch (error) {
+    console.error('Error saat simpan data:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// 🔵 RUTE GET: Menyajikan data terbaru ke Website (script.js)
-app.get('/api/sensor', async (req, res) => {
+// [GET] Mengirimkan data paling baru ke Website (script.js)
+router.get('/sensor', async (req, res) => {
   try {
-    // Mengambil 1 data paling terakhir dimasukkan
+    // Cari 1 data dengan waktu terbaru (sort -1)
     const dataTerakhir = await Sensor.findOne().sort({ waktu: -1 });
+    
+    if (!dataTerakhir) {
+      return res.status(404).json({ message: 'Database masih kosong' });
+    }
+    
     res.status(200).json(dataTerakhir);
   } catch (error) {
+    console.error('Error saat mengambil data:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Export fungsi agar dikenali sebagai Netlify Functions
+// =============================================
+//  4. MOUNTING & EXPORT (WAJIB UNTUK NETLIFY)
+// =============================================
+// Trik agar API terbaca baik dengan atau tanpa redirect netlify.toml
+app.use('/api', router);
+app.use('/.netlify/functions/api', router);
+
+// Membungkus aplikasi Express menjadi fungsi Serverless
 module.exports.handler = serverless(app);
