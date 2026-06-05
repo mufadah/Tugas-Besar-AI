@@ -2,109 +2,107 @@ const express = require('express');
 const serverless = require('serverless-http');
 const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config();
 
 const app = express();
 const router = express.Router();
 
-// Middleware
-app.use(cors());
+app.use(cors({
+  origin: '*', // Izinkan semua akses untuk debugging
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type']
+}));
 app.use(express.json());
 
-// Konfigurasi Koneksi MongoDB (Serverless-safe Pattern)
+// =============================================
+//  1. KONEKSI MONGODB DENGAN POLA CACHED (ANTI-TIMEOUT)
+// =============================================
 let isConnected = false;
 
-async function connectToDatabase() {
-    if (isConnected) {
-        return;
-    }
-    console.log("=> Membuka koneksi baru ke MongoDB Atlas...");
-    try {
-        await mongoose.connect(process.env.MONGODB_URI, {
-            serverSelectionTimeoutMS: 5000
-        });
-        isConnected = true;
-        console.log("Berhasil terhubung ke MongoDB Atlas!");
-    } catch (error) {
-        console.error("Gagal terhubung ke MongoDB Atlas:", error.message);
-        throw error;
-    }
+async function connectDatabase() {
+  if (isConnected) {
+    console.log('=> Menggunakan koneksi database yang sudah ada (Cached).');
+    return;
+  }
+
+  console.log('=> Membuka koneksi baru ke MongoDB Atlas...');
+  try {
+    const db = await mongoose.connect(process.env.MONGODB_URI, {
+      // Opsi tambahan agar Mongoose langsung melempar error jika koneksi gagal,
+      // bukannya melakukan buffering selama 10 detik yang bikin timeout.
+      bufferCommands: false, 
+    });
+    isConnected = db.connections[0].readyState;
+    console.log(' Berhasil terhubung ke MongoDB Atlas!');
+  } catch (err) {
+    console.error('❌ Gagal terhubung ke MongoDB:', err.message);
+    throw err;
+  }
 }
 
-// Skema & Model Data (Sesuaikan kolom dengan project IoT/Dashboard Anda)
-const DataLogSchema = new mongoose.Schema({
-    timestamp: { type: String, required: true },
-    ruangan: { type: String, required: true },
-    suhu: { type: Number, required: true },
-    kelembapan: { type: Number, required: true }
-}, { collection: 'logs' });
-
-const DataLog = mongoose.models.DataLog || mongoose.model('DataLog', DataLogSchema);
-
-// Middleware untuk memastikan database terkoneksi di setiap request
-router.use(async (req, res, next) => {
-    try {
-        await connectToDatabase();
-        next();
-    } catch (error) {
-        return res.status(500).json({ 
-            status: "error", 
-            message: "Koneksi database gagal terhubung." 
-        });
-    }
+// Middleware otomatis untuk memastikan database terhubung sebelum membaca rute API
+app.use(async (req, res, next) => {
+  try {
+    await connectDatabase();
+    next();
+  } catch (err) {
+    res.status(500).json({ error: "Gagal tersambung ke database cloud: " + err.message });
+  }
 });
 
-// 1. Endpoint Ambil Data (GET) - Ini yang sebelumnya memicu ERR_HTTP_HEADERS_SENT
-router.get('/logs', async (req, res) => {
-    try {
-        const logs = await DataLog.find().sort({ _id: -1 }).limit(100);
-        // Pastikan menggunakan return untuk menghentikan fungsi
-        return res.status(200).json(logs); 
-    } catch (error) {
-        console.error("Error saat mengambil data:", error);
-        // Pastikan menggunakan return di blok catch
-        return res.status(500).json({ 
-            status: "error", 
-            message: "Gagal mengambil data dari database." 
-        });
-    }
+// =============================================
+//  2. SKEMA DATABASE (MODEL)
+// =============================================
+const SensorSchema = new mongoose.Schema({
+  ruangan: String,
+  suhu: Number,
+  kelembapan: Number,
+  waktu: { type: Date, default: Date.now }
 });
 
-// 2. Endpoint Tambah Data (POST) - Biasanya digunakan oleh ESP32 / Simulator Data
-router.post('/logs', async (req, res) => {
-    try {
-        const { ruangan, suhu, kelembapan } = req.body;
-        
-        if (!ruangan || suhu == null || kelembapan == null) {
-            return res.status(400).json({ 
-                status: "error", 
-                message: "Data tidak lengkap! Pastikan nilai ruangan, suhu, dan kelembapan terisi." 
-            });
-        }
+// Hapus parameter ketiga agar Mongoose kembali menggunakan nama standar 'sensors'
+const Sensor = mongoose.models.Sensor || mongoose.model('Sensor', SensorSchema);
 
-        const logBaru = new DataLog({
-            timestamp: new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }),
-            ruangan,
-            suhu: Number(suhu),
-            kelembapan: Number(kelembapan)
-        });
+// =============================================
+//  3. RUTE API (ROUTER)
+// =============================================
 
-        await logBaru.save();
-        return res.status(201).json({ 
-            status: "success", 
-            message: "Data berhasil disimpan!", 
-            data: logBaru 
-        });
-    } catch (error) {
-        console.error("Error saat menyimpan data:", error);
-        return res.status(500).json({ 
-            status: "error", 
-            message: "Gagal menyimpan data ke database." 
-        });
-    }
+// [POST] Menerima data sensor dari ESP32
+router.post('/sensor', async (req, res) => {
+  console.log("Data diterima dari ESP32:", req.body);
+  try {
+    const { ruangan, suhu, kelembapan } = req.body;
+    
+    const dataBaru = new Sensor({
+      ruangan: ruangan || "Ruang Bayi 1 (NICU)",
+      suhu: suhu,
+      kelembapan: kelembapan
+    });
+    
+    // Matikan buffer pada instance ini demi keamanan serverless
+    await dataBaru.save({ checkKeys: false });
+    res.status(201).json({ message: 'Data ESP32 sukses disimpan ke cloud!' });
+  } catch (error) {
+    console.error('Error saat simpan data:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Integrasi Express Router ke Base Path Netlify Functions
+// [GET] Mengirimkan data paling baru ke Website
+router.get('/sensor', async (req, res) => {
+  try {
+    const dataTerakhir = await Sensor.find().sort({ waktu: -1 }).limit(20);
+    res.status(200).json(dataTerakhir.reverse());
+    if (!dataTerakhir) {
+      return res.status(404).json({ message: 'Database masih kosong' });
+    }
+    res.status(200).json(dataTerakhir);
+  } catch (error) {
+    console.error('Error saat mengambil data:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.use('/api', router);
 app.use('/.netlify/functions/api', router);
 
 module.exports.handler = serverless(app);
