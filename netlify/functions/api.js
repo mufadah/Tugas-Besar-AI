@@ -91,54 +91,14 @@ router.post('/sensor', async (req, res) => {
 router.get('/sensor', async (req, res) => {
   try {
     const dataTerakhir = await Sensor.find().sort({ waktu: -1 }).limit(20);
-    
-    // 1. Cek dulu apakah data kosong (Mongoose find() mengembalikan array kosong [] jika tidak ada data)
-    if (!dataTerakhir || dataTerakhir.length === 0) {
+    res.status(200).json(dataTerakhir.reverse());
+    if (!dataTerakhir) {
       return res.status(404).json({ message: 'Database masih kosong' });
     }
-    
-    // 2. Balik urutan data agar kronologis dari lama -> baru di grafik website, lalu gunakan RETURN
-    return res.status(200).json(dataTerakhir.reverse());
-    
+    res.status(200).json(dataTerakhir);
   } catch (error) {
     console.error('Error saat mengambil data:', error);
-    // 3. Pastikan di blok catch juga menggunakan RETURN demi keamanan serverless
-    return res.status(500).json({ error: error.message });
-  }
-});
-
-// [GET] Mengambil Log Agregasi Rata-rata per 30 Menit
-router.get('/log-30menit', async (req, res) => {
-  try {
-    const logAgregasi = await Sensor.aggregate([
-      {
-        $group: {
-          _id: {
-            year: { $year: "$waktu" },
-            month: { $month: "$waktu" },
-            day: { $dayOfMonth: "$waktu" },
-            hour: { $hour: "$waktu" },
-            // Membagi menit menjadi blok 30 menitan (contoh: menit 15 jadi 0, menit 45 jadi 30)
-            minute: {
-              $subtract: [
-                { $minute: "$waktu" },
-                { $mod: [{ $minute: "$waktu" }, 30] }
-              ]
-            }
-          },
-          rataSuhu: { $avg: "$suhu" },
-          rataKelembapan: { $avg: "$kelembapan" }
-        }
-      },
-      // Mengurutkan dari blok waktu paling baru ke paling lama
-      { $sort: { "_id.year": -1, "_id.month": -1, "_id.day": -1, "_id.hour": -1, "_id.minute": -1 } },
-      { $limit: 10 } // Batasi hanya menampilkan 10 blok waktu terakhir
-    ]);
-    
-    return res.status(200).json(logAgregasi);
-  } catch (error) {
-    console.error('Error saat agregasi data 30 menit:', error);
-    return res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 

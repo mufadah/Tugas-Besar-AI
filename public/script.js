@@ -80,7 +80,7 @@ function tampilkanStatusMenunggu() {
     statusBadge.innerText = "⏳ MENCARI DATA ESP32...";
     statusBadge.style.backgroundColor = "#eab308"; // Kuning/Oranye
   }
-}z
+}
 
 // ========================================================
 //  INSIALISASI OTOMATIS SAAT HALAMAN DIBUKA
