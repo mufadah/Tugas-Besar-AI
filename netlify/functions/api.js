@@ -91,14 +91,19 @@ router.post('/sensor', async (req, res) => {
 router.get('/sensor', async (req, res) => {
   try {
     const dataTerakhir = await Sensor.find().sort({ waktu: -1 }).limit(20);
-    res.status(200).json(dataTerakhir.reverse());
-    if (!dataTerakhir) {
+    
+    // 1. Cek dulu apakah data kosong (Mongoose find() mengembalikan array kosong [] jika tidak ada data)
+    if (!dataTerakhir || dataTerakhir.length === 0) {
       return res.status(404).json({ message: 'Database masih kosong' });
     }
-    res.status(200).json(dataTerakhir);
+    
+    // 2. Balik urutan data agar kronologis dari lama -> baru di grafik website, lalu gunakan RETURN
+    return res.status(200).json(dataTerakhir.reverse());
+    
   } catch (error) {
     console.error('Error saat mengambil data:', error);
-    res.status(500).json({ error: error.message });
+    // 3. Pastikan di blok catch juga menggunakan RETURN demi keamanan serverless
+    return res.status(500).json({ error: error.message });
   }
 });
 
