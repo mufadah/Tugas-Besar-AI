@@ -2,109 +2,109 @@ const express = require('express');
 const serverless = require('serverless-http');
 const mongoose = require('mongoose');
 const cors = require('cors');
+require('dotenv').config();
 
 const app = express();
 const router = express.Router();
 
-app.use(cors({
-  origin: '*', 
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type']
-}));
+// Middleware
+app.use(cors());
 app.use(express.json());
 
-// =============================================
-//  1. KONEKSI MONGODB DENGAN POLA CACHED (ANTI-TIMEOUT)
-// =============================================
+// Konfigurasi Koneksi MongoDB (Serverless-safe Pattern)
 let isConnected = false;
 
-async function connectDatabase() {
-  if (isConnected) {
-    console.log('=> Menggunakan koneksi database yang sudah ada (Cached).');
-    return;
-  }
-
-  console.log('=> Membuka koneksi baru ke MongoDB Atlas...');
-  try {
-    const db = await mongoose.connect(process.env.MONGODB_URI, {
-      bufferCommands: false, 
-    });
-    isConnected = db.connections[0].readyState;
-    console.log('Berhasil terhubung ke MongoDB Atlas!');
-  } catch (err) {
-    console.error('❌ Gagal terhubung ke MongoDB:', err.message);
-    throw err;
-  }
+async function connectToDatabase() {
+    if (isConnected) {
+        return;
+    }
+    console.log("=> Membuka koneksi baru ke MongoDB Atlas...");
+    try {
+        await mongoose.connect(process.env.MONGODB_URI, {
+            serverSelectionTimeoutMS: 5000
+        });
+        isConnected = true;
+        console.log("Berhasil terhubung ke MongoDB Atlas!");
+    } catch (error) {
+        console.error("Gagal terhubung ke MongoDB Atlas:", error.message);
+        throw error;
+    }
 }
 
-// Middleware otomatis untuk memastikan database terhubung sebelum membaca rute API
-app.use(async (req, res, next) => {
-  try {
-    await connectDatabase();
-    next();
-  } catch (err) {
-    // Tambahkan return untuk memastikan eksekusi middleware berhenti di sini saat error
-    return res.status(500).json({ error: "Gagal tersambung ke database cloud: " + err.message });
-  }
-});
+// Skema & Model Data (Sesuaikan kolom dengan project IoT/Dashboard Anda)
+const DataLogSchema = new mongoose.Schema({
+    timestamp: { type: String, required: true },
+    ruangan: { type: String, required: true },
+    suhu: { type: Number, required: true },
+    kelembapan: { type: Number, required: true }
+}, { collection: 'logs' });
 
-// =============================================
-//  2. SKEMA DATABASE (MODEL)
-// =============================================
-const SensorSchema = new mongoose.Schema({
-  ruangan: String,
-  suhu: Number,
-  kelembapan: Number,
-  waktu: { type: Date, default: Date.now }
-});
+const DataLog = mongoose.models.DataLog || mongoose.model('DataLog', DataLogSchema);
 
-const Sensor = mongoose.models.Sensor || mongoose.model('Sensor', SensorSchema);
-
-// =============================================
-//  3. RUTE API (ROUTER)
-// =============================================
-
-// [POST] Menerima data sensor dari ESP32
-router.post('/sensor', async (req, res) => {
-  console.log("Data diterima dari ESP32:", req.body);
-  try {
-    const { ruangan, suhu, kelembapan } = req.body;
-    
-    const dataBaru = new Sensor({
-      ruangan: ruangan || "Ruang Bayi 1 (NICU)",
-      suhu: parseFloat(suhu),
-      kelembapan: parseFloat(kelembapan)
-    });
-    
-    await dataBaru.save({ checkKeys: false });
-    return res.status(201).json({ message: 'Data ESP32 sukses disimpan ke cloud!' });
-  } catch (error) {
-    console.error('Error saat simpan data:', error);
-    // Menggunakan return untuk mencegah kebocoran respon ganda jika ada alur internal yang berlanjut
-    return res.status(500).json({ error: error.message });
-  }
-});
-
-// [GET] Mengirimkan data histori untuk kebutuhan Dashboard
-router.get('/sensor', async (req, res) => {
-  try {
-    // Mengambil 20 data terakhir untuk menyuplai komponen Chart.js & log tabel
-    const dataTerakhir = await Sensor.find().sort({ waktu: -1 }).limit(20);
-    
-    if (!dataTerakhir || dataTerakhir.length === 0) {
-      return res.status(200).json([]); // Kirim array kosong jika DB belum terisi
+// Middleware untuk memastikan database terkoneksi di setiap request
+router.use(async (req, res, next) => {
+    try {
+        await connectToDatabase();
+        next();
+    } catch (error) {
+        return res.status(500).json({ 
+            status: "error", 
+            message: "Koneksi database gagal terhubung." 
+        });
     }
-    
-    // Membalikkan urutan agar data paling lampau di kiri dan data paling baru di kanan grafik
-    return res.status(200).json(dataTerakhir.reverse());
-  } catch (error) {
-    console.error('Error saat mengambil data:', error);
-    // Pastikan menggunakan return di dalam catch block agar proses berhenti
-    return res.status(500).json({ error: error.message });
-  }
 });
 
-app.use('/api', router);
+// 1. Endpoint Ambil Data (GET) - Ini yang sebelumnya memicu ERR_HTTP_HEADERS_SENT
+router.get('/logs', async (req, res) => {
+    try {
+        const logs = await DataLog.find().sort({ _id: -1 }).limit(100);
+        // Pastikan menggunakan return untuk menghentikan fungsi
+        return res.status(200).json(logs); 
+    } catch (error) {
+        console.error("Error saat mengambil data:", error);
+        // Pastikan menggunakan return di blok catch
+        return res.status(500).json({ 
+            status: "error", 
+            message: "Gagal mengambil data dari database." 
+        });
+    }
+});
+
+// 2. Endpoint Tambah Data (POST) - Biasanya digunakan oleh ESP32 / Simulator Data
+router.post('/logs', async (req, res) => {
+    try {
+        const { ruangan, suhu, kelembapan } = req.body;
+        
+        if (!ruangan || suhu == null || kelembapan == null) {
+            return res.status(400).json({ 
+                status: "error", 
+                message: "Data tidak lengkap! Pastikan nilai ruangan, suhu, dan kelembapan terisi." 
+            });
+        }
+
+        const logBaru = new DataLog({
+            timestamp: new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }),
+            ruangan,
+            suhu: Number(suhu),
+            kelembapan: Number(kelembapan)
+        });
+
+        await logBaru.save();
+        return res.status(201).json({ 
+            status: "success", 
+            message: "Data berhasil disimpan!", 
+            data: logBaru 
+        });
+    } catch (error) {
+        console.error("Error saat menyimpan data:", error);
+        return res.status(500).json({ 
+            status: "error", 
+            message: "Gagal menyimpan data ke database." 
+        });
+    }
+});
+
+// Integrasi Express Router ke Base Path Netlify Functions
 app.use('/.netlify/functions/api', router);
 
 module.exports.handler = serverless(app);
