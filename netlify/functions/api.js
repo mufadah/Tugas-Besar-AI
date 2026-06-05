@@ -107,6 +107,41 @@ router.get('/sensor', async (req, res) => {
   }
 });
 
+// [GET] Mengambil Log Agregasi Rata-rata per 30 Menit
+router.get('/log-30menit', async (req, res) => {
+  try {
+    const logAgregasi = await Sensor.aggregate([
+      {
+        $group: {
+          _id: {
+            year: { $year: "$waktu" },
+            month: { $month: "$waktu" },
+            day: { $dayOfMonth: "$waktu" },
+            hour: { $hour: "$waktu" },
+            // Membagi menit menjadi blok 30 menitan (contoh: menit 15 jadi 0, menit 45 jadi 30)
+            minute: {
+              $subtract: [
+                { $minute: "$waktu" },
+                { $mod: [{ $minute: "$waktu" }, 30] }
+              ]
+            }
+          },
+          rataSuhu: { $avg: "$suhu" },
+          rataKelembapan: { $avg: "$kelembapan" }
+        }
+      },
+      // Mengurutkan dari blok waktu paling baru ke paling lama
+      { $sort: { "_id.year": -1, "_id.month": -1, "_id.day": -1, "_id.hour": -1, "_id.minute": -1 } },
+      { $limit: 10 } // Batasi hanya menampilkan 10 blok waktu terakhir
+    ]);
+    
+    return res.status(200).json(logAgregasi);
+  } catch (error) {
+    console.error('Error saat agregasi data 30 menit:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 app.use('/api', router);
 app.use('/.netlify/functions/api', router);
 
