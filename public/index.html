@@ -111,7 +111,7 @@
                         <div class="value-display text-danger" id="liveTemp">--</div>
                         <span class="fs-4 fw-medium text-secondary ms-1">°C</span>
                     </div>
-                    <div class="mt-2 text-muted small"><i class="fa-solid fa-circle-info me-1"></i> Rentang Normal: 36.5°C - 37.5°C</div>
+                    <div class="mt-2 text-muted small"><i class="fa-solid fa-circle-info me-1"></i> Rentang Normal: 35°C</div>
                 </div>
             </div>
             <div class="col-md-6">
@@ -168,29 +168,6 @@
                 </div>
             </div>
         </div>
-
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="card card-custom p-4">
-                    <h5 class="card-title mb-3 fw-bold">
-                        <i class="fa-solid fa-clock me-2 text-primary"></i>Histori Rata-rata (Per 30 Menit)
-                    </h5>
-                    <div class="table-responsive table-container border rounded">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light sticky-top">
-                                <tr>
-                                    <th style="width: 40%;">Waktu (Blok 30 Menit)</th>
-                                    <th style="width: 30%;">Rata-rata Suhu (°C)</th>
-                                    <th style="width: 30%;">Rata-rata Kelembapan (%)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tableLog30Menit">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -199,7 +176,7 @@
         // ==========================================
         let dataHistori = [];
         let waktuTerakhirUpdate = 0; 
-        const BATAS_OFFLINE = 20000; // Jika data di DB tidak update > 20 detik, dianggap offline
+        const BATAS_OFFLINE = 20000; // Toleransi waktu 20 detik jika data stasioner
 
         const ctx = document.getElementById('realtimeChart').getContext('2d');
         const configChart = new Chart(ctx, {
@@ -217,7 +194,7 @@
                     x: { ticks: { color: '#64748b' }, grid: { color: '#e2e8f0' } },
                     y: { type: 'linear', position: 'left', title: { display: true, text: 'Suhu (°C)' }, ticks: { color: '#64748b' }, grid: { color: '#e2e8f0' } },
                     y1: { type: 'linear', position: 'right', title: { display: true, text: 'Kelembapan (%)' }, ticks: { color: '#64748b' }, grid: { drawOnChartArea: false } }
-                },
+                ],
                 plugins: { legend: { labels: { color: '#64748b' } } }
             }
         });
@@ -283,18 +260,18 @@
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = ''; 
 
-            // Tampilkan data di tabel log (terbaru di urutan atas)
+            // Urutan log tabel dibalik agar data terbaru berada di posisi paling atas
             [...dataHistori].reverse().forEach(item => {
                 tbody.innerHTML += `<tr>
                     <td class="fw-medium text-muted">${item.timestamp}</td>
                     <td>${item.ruangan}</td>
-                    <td class="fw-bold text-danger">${item.suhu}</td>
-                    <td class="fw-bold text-info">${item.kelembapan}</td>
+                    <td class="fw-bold text-danger">${item.suhu.toFixed(1)}</td>
+                    <td class="fw-bold text-info">${item.kelembapan.toFixed(1)}</td>
                     <td>${dapatkanStatus(item.suhu, item.kelembapan)}</td>
                 </tr>`;
             });
 
-            // Tampilkan nilai live paling baru pada card atas
+            // Tampilkan nilai mutakhir di bagian Card Atas
             const dataTerbaru = dataHistori[dataHistori.length - 1];
             document.getElementById('liveTemp').innerText = dataTerbaru.suhu.toFixed(1);
             document.getElementById('liveHum').innerText = dataTerbaru.kelembapan.toFixed(1);
@@ -308,27 +285,22 @@
         }
 
         // ==========================================
-        // 4. POLLING REFRESH DATA (PENGGANTI WEBSOCKET)
-        // ==========================================
-        // UBAH BAGIAN INI DI index.html
-        // ==========================================
-        // 4. POLLING REFRESH DATA (Disesuaikan)
+        // 4. POLLING REFRESH DATA (Disesuaikan ke /api/sensor)
         // ==========================================
         async function pollDataSensor() {
             try {
-                // Endpoint yang benar sesuai api.js
+                // Endpoint diselaraskan dengan routing GET pada api.js Netlify Function
                 const response = await fetch('/api/sensor');
                 const arrayData = await response.json();
 
                 if (Array.isArray(arrayData) && arrayData.length > 0) {
-                    // Ambil waktu dari data paling baru (menggunakan field 'waktu' sesuai skema di api.js)
                     const dataPalingBaru = arrayData[arrayData.length - 1];
+                    // Penyelarasan properti objek dari database Mongoose ('waktu')
                     waktuTerakhirUpdate = new Date(dataPalingBaru.waktu).getTime();
 
-                    // Map ke array lokal
                     dataHistori = arrayData.map(item => ({
                         timestamp: new Date(item.waktu).toLocaleTimeString(),
-                        ruangan: item.ruangan,
+                        ruangan: item.ruangan || "Ruang Bayi 1 (NICU)",
                         suhu: parseFloat(item.suhu),
                         kelembapan: parseFloat(item.kelembapan)
                     }));
@@ -341,25 +313,6 @@
             }
         }
 
-        async function ambilLog30Menit() {
-            try {
-                const response = await fetch('/api/log-30menit');
-                const data = await response.json();
-                const tbody = document.getElementById('tableLog30Menit');
-                tbody.innerHTML = '';
-
-                data.forEach(item => {
-                    tbody.innerHTML += `<tr>
-                        <td>${new Date(item._id.year, item._id.month-1, item._id.day, item._id.hour, item._id.minute).toLocaleString()}</td>
-                        <td class="fw-bold text-danger">${item.rataSuhu.toFixed(1)}</td>
-                        <td class="fw-bold text-info">${item.rataKelembapan.toFixed(1)}</td>
-                    </tr>`;
-                });
-            } catch (e) {
-                console.error("Gagal mengambil log agregasi 30 menit:", e);
-            }
-        }
-
         function cekStatusKoneksi() {
             const statusBadge = document.getElementById('espStatus');
             const sekarang = Date.now();
@@ -368,7 +321,6 @@
                 statusBadge.className = 'badge bg-secondary px-3 py-2 fs-6';
                 statusBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Menunggu Data...';
             } else if (sekarang - waktuTerakhirUpdate > BATAS_OFFLINE) {
-                // Jika selisih waktu sekarang dengan data terakhir di DB > 20 detik, alat dianggap mati
                 statusBadge.className = 'badge bg-danger px-3 py-2 fs-6';
                 statusBadge.innerHTML = '<i class="fa-solid fa-circle-xmark me-2"></i>Offline (Alat Terputus)';
                 document.getElementById('liveTemp').className = 'value-display text-muted';
@@ -382,13 +334,11 @@
         }
 
         // --- Alur Eksekusi Pengganti Jalur WebSocket ---
-        pollDataSensor();           // Ambil data pertama kali saat web dibuka
-        ambilLog30Menit();          // Ambil agregasi awal
-
-        // Set Interval Aktivitas Polling Berkala
-        setInterval(pollDataSensor, 5000);       // Tarik data baru dari MongoDB setiap 5 detik
-        setInterval(cekStatusKoneksi, 1000);     // Validasi status online/offline setiap 1 detik
-        setInterval(ambilLog30Menit, 60000 * 5); // Segarkan tabel histori 30 menit setiap 5 menit sekali
+        pollDataSensor(); 
+        
+        // Polling loop interval
+        setInterval(pollDataSensor, 5000);       // Polling data MongoDB tiap 5 detik
+        setInterval(cekStatusKoneksi, 1000);     // Validasi status perangkat keras tiap 1 detik
 
         // ==========================================
         // 5. EXPORT DATA KE CSV

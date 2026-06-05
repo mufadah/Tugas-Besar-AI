@@ -7,7 +7,7 @@ const app = express();
 const router = express.Router();
 
 app.use(cors({
-  origin: '*', // Izinkan semua akses untuk debugging
+  origin: '*', 
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type']
 }));
@@ -27,12 +27,10 @@ async function connectDatabase() {
   console.log('=> Membuka koneksi baru ke MongoDB Atlas...');
   try {
     const db = await mongoose.connect(process.env.MONGODB_URI, {
-      // Opsi tambahan agar Mongoose langsung melempar error jika koneksi gagal,
-      // bukannya melakukan buffering selama 10 detik yang bikin timeout.
       bufferCommands: false, 
     });
     isConnected = db.connections[0].readyState;
-    console.log(' Berhasil terhubung ke MongoDB Atlas!');
+    console.log('Berhasil terhubung ke MongoDB Atlas!');
   } catch (err) {
     console.error('❌ Gagal terhubung ke MongoDB:', err.message);
     throw err;
@@ -45,7 +43,8 @@ app.use(async (req, res, next) => {
     await connectDatabase();
     next();
   } catch (err) {
-    res.status(500).json({ error: "Gagal tersambung ke database cloud: " + err.message });
+    // Tambahkan return untuk memastikan eksekusi middleware berhenti di sini saat error
+    return res.status(500).json({ error: "Gagal tersambung ke database cloud: " + err.message });
   }
 });
 
@@ -59,7 +58,6 @@ const SensorSchema = new mongoose.Schema({
   waktu: { type: Date, default: Date.now }
 });
 
-// Hapus parameter ketiga agar Mongoose kembali menggunakan nama standar 'sensors'
 const Sensor = mongoose.models.Sensor || mongoose.model('Sensor', SensorSchema);
 
 // =============================================
@@ -74,31 +72,35 @@ router.post('/sensor', async (req, res) => {
     
     const dataBaru = new Sensor({
       ruangan: ruangan || "Ruang Bayi 1 (NICU)",
-      suhu: suhu,
-      kelembapan: kelembapan
+      suhu: parseFloat(suhu),
+      kelembapan: parseFloat(kelembapan)
     });
     
-    // Matikan buffer pada instance ini demi keamanan serverless
     await dataBaru.save({ checkKeys: false });
-    res.status(201).json({ message: 'Data ESP32 sukses disimpan ke cloud!' });
+    return res.status(201).json({ message: 'Data ESP32 sukses disimpan ke cloud!' });
   } catch (error) {
     console.error('Error saat simpan data:', error);
-    res.status(500).json({ error: error.message });
+    // Menggunakan return untuk mencegah kebocoran respon ganda jika ada alur internal yang berlanjut
+    return res.status(500).json({ error: error.message });
   }
 });
 
-// [GET] Mengirimkan data paling baru ke Website
+// [GET] Mengirimkan data histori untuk kebutuhan Dashboard
 router.get('/sensor', async (req, res) => {
   try {
+    // Mengambil 20 data terakhir untuk menyuplai komponen Chart.js & log tabel
     const dataTerakhir = await Sensor.find().sort({ waktu: -1 }).limit(20);
-    res.status(200).json(dataTerakhir.reverse());
-    if (!dataTerakhir) {
-      return res.status(404).json({ message: 'Database masih kosong' });
+    
+    if (!dataTerakhir || dataTerakhir.length === 0) {
+      return res.status(200).json([]); // Kirim array kosong jika DB belum terisi
     }
-    res.status(200).json(dataTerakhir);
+    
+    // Membalikkan urutan agar data paling lampau di kiri dan data paling baru di kanan grafik
+    return res.status(200).json(dataTerakhir.reverse());
   } catch (error) {
     console.error('Error saat mengambil data:', error);
-    res.status(500).json({ error: error.message });
+    // Pastikan menggunakan return di dalam catch block agar proses berhenti
+    return res.status(500).json({ error: error.message });
   }
 });
 
