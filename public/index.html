@@ -66,9 +66,12 @@
         [data-bs-theme="light"] .bg-normal { background-color: #dcfce7; color: #15803d; }
         [data-bs-theme="light"] .bg-warning-custom { background-color: #fef9c3; color: #a16207; }
         [data-bs-theme="light"] .bg-danger-custom { background-color: #fee2e2; color: #b91c1c; }
+        [data-bs-theme="light"] .bg-active-session { background-color: #dbeafe; color: #1e40af; }
+        
         [data-bs-theme="dark"] .bg-normal { background-color: #065f46; color: #a7f3d0; }
         [data-bs-theme="dark"] .bg-warning-custom { background-color: #854d0e; color: #fef08a; }
         [data-bs-theme="dark"] .bg-danger-custom { background-color: #991b1b; color: #fecaca; }
+        [data-bs-theme="dark"] .bg-active-session { background-color: #1e3a8a; color: #bfdbfe; }
     </style>
 </head>
 <body>
@@ -173,18 +176,21 @@
             <div class="col-12">
                 <div class="card card-custom p-4">
                     <h5 class="card-title mb-3 fw-bold">
-                        <i class="fa-solid fa-clock me-2 text-primary"></i>Histori Rata-rata (Per 30 Menit)
+                        <i class="fa-solid fa-network-wired me-2 text-primary"></i>Histori Sesi (Koneksi Alat)
                     </h5>
                     <div class="table-responsive table-container border rounded">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 text-center">
                             <thead class="table-light sticky-top">
                                 <tr>
-                                    <th style="width: 40%;">Waktu (Blok 30 Menit)</th>
-                                    <th style="width: 30%;">Rata-rata Suhu (°C)</th>
-                                    <th style="width: 30%;">Rata-rata Kelembapan (%)</th>
+                                    <th>Mulai Sesi</th>
+                                    <th>Akhir Sesi</th>
+                                    <th>Durasi Aktif</th>
+                                    <th>Rata-rata Suhu (°C)</th>
+                                    <th>Status Sesi</th>
                                 </tr>
                             </thead>
-                            <tbody id="tableLog30Menit">
+                            <tbody id="tableLogSesi">
+                                <tr><td colspan="5" class="text-center py-4 text-muted">Memuat data sesi...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -199,7 +205,7 @@
         // ==========================================
         let dataHistori = [];
         let waktuTerakhirUpdate = 0; 
-        const BATAS_OFFLINE = 20000; // Jika data di DB tidak update > 20 detik, dianggap offline
+        const BATAS_OFFLINE = 20000; 
 
         const ctx = document.getElementById('realtimeChart').getContext('2d');
         const configChart = new Chart(ctx, {
@@ -283,7 +289,6 @@
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = ''; 
 
-            // Tampilkan data di tabel log (terbaru di urutan atas)
             [...dataHistori].reverse().forEach(item => {
                 tbody.innerHTML += `<tr>
                     <td class="fw-medium text-muted">${item.timestamp}</td>
@@ -294,7 +299,6 @@
                 </tr>`;
             });
 
-            // Tampilkan nilai live paling baru pada card atas
             const dataTerbaru = dataHistori[dataHistori.length - 1];
             document.getElementById('liveTemp').innerText = dataTerbaru.suhu.toFixed(1);
             document.getElementById('liveHum').innerText = dataTerbaru.kelembapan.toFixed(1);
@@ -308,24 +312,17 @@
         }
 
         // ==========================================
-        // 4. POLLING REFRESH DATA (PENGGANTI WEBSOCKET)
-        // ==========================================
-        // UBAH BAGIAN INI DI index.html
-        // ==========================================
         // 4. POLLING REFRESH DATA (Disesuaikan)
         // ==========================================
         async function pollDataSensor() {
             try {
-                // Endpoint yang benar sesuai api.js
                 const response = await fetch('/api/sensor');
                 const arrayData = await response.json();
 
                 if (Array.isArray(arrayData) && arrayData.length > 0) {
-                    // Ambil waktu dari data paling baru (menggunakan field 'waktu' sesuai skema di api.js)
                     const dataPalingBaru = arrayData[arrayData.length - 1];
                     waktuTerakhirUpdate = new Date(dataPalingBaru.waktu).getTime();
 
-                    // Map ke array lokal
                     dataHistori = arrayData.map(item => ({
                         timestamp: new Date(item.waktu).toLocaleTimeString(),
                         ruangan: item.ruangan,
@@ -337,26 +334,43 @@
                     updateDashboardUI();
                 }
             } catch (error) {
-                console.error("Gagal melakukan polling data sensor:", error);
+                console.error("Gagal polling data sensor:", error);
             }
         }
 
-        async function ambilLog30Menit() {
+        // 🔥 FUNGSI BARU UNTUK MENGAMBIL DATA SESI 🔥
+        async function ambilLogSesi() {
             try {
-                const response = await fetch('/api/log-30menit');
+                // Menembak endpoint API baru yang menangani agregasi sesi
+                const response = await fetch('/api/log-sesi');
                 const data = await response.json();
-                const tbody = document.getElementById('tableLog30Menit');
+                const tbody = document.getElementById('tableLogSesi');
                 tbody.innerHTML = '';
 
+                if(data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Belum ada histori sesi terekam.</td></tr>';
+                    return;
+                }
+
                 data.forEach(item => {
+                    // Cek jika sesi belum ada waktu selesainya (artinya alat masih nyala sekarang)
+                    const isSesiAktif = !item.waktuSelesai;
+                    const waktuSelesaiTeks = isSesiAktif ? '-' : new Date(item.waktuSelesai).toLocaleString();
+                    const statusSesi = isSesiAktif 
+                        ? '<span class="status-badge bg-active-session"><i class="fa-solid fa-satellite-dish fa-beat me-1"></i>Sedang Berjalan</span>' 
+                        : '<span class="status-badge bg-secondary text-white">Sesi Selesai</span>';
+
                     tbody.innerHTML += `<tr>
-                        <td>${new Date(item._id.year, item._id.month-1, item._id.day, item._id.hour, item._id.minute).toLocaleString()}</td>
+                        <td>${new Date(item.waktuMulai).toLocaleString()}</td>
+                        <td>${waktuSelesaiTeks}</td>
+                        <td class="fw-medium">${item.durasi}</td>
                         <td class="fw-bold text-danger">${item.rataSuhu.toFixed(1)}</td>
-                        <td class="fw-bold text-info">${item.rataKelembapan.toFixed(1)}</td>
+                        <td>${statusSesi}</td>
                     </tr>`;
                 });
             } catch (e) {
-                console.error("Gagal mengambil log agregasi 30 menit:", e);
+                console.error("Gagal mengambil histori sesi:", e);
+                document.getElementById('tableLogSesi').innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Gagal memuat data sesi.</td></tr>';
             }
         }
 
@@ -368,7 +382,6 @@
                 statusBadge.className = 'badge bg-secondary px-3 py-2 fs-6';
                 statusBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Menunggu Data...';
             } else if (sekarang - waktuTerakhirUpdate > BATAS_OFFLINE) {
-                // Jika selisih waktu sekarang dengan data terakhir di DB > 20 detik, alat dianggap mati
                 statusBadge.className = 'badge bg-danger px-3 py-2 fs-6';
                 statusBadge.innerHTML = '<i class="fa-solid fa-circle-xmark me-2"></i>Offline (Alat Terputus)';
                 document.getElementById('liveTemp').className = 'value-display text-muted';
@@ -381,14 +394,12 @@
             }
         }
 
-        // --- Alur Eksekusi Pengganti Jalur WebSocket ---
-        pollDataSensor();           // Ambil data pertama kali saat web dibuka
-        ambilLog30Menit();          // Ambil agregasi awal
+        pollDataSensor();           
+        ambilLogSesi(); // Ganti fungsi pemanggilan awal
 
-        // Set Interval Aktivitas Polling Berkala
-        setInterval(pollDataSensor, 5000);       // Tarik data baru dari MongoDB setiap 5 detik
-        setInterval(cekStatusKoneksi, 1000);     // Validasi status online/offline setiap 1 detik
-        setInterval(ambilLog30Menit, 60000 * 5); // Segarkan tabel histori 30 menit setiap 5 menit sekali
+        setInterval(pollDataSensor, 5000);       
+        setInterval(cekStatusKoneksi, 1000);     
+        setInterval(ambilLogSesi, 60000); // Segarkan tabel sesi setiap 1 menit
 
         // ==========================================
         // 5. EXPORT DATA KE CSV

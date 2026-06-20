@@ -1,56 +1,92 @@
 // ========================================================
 //  KONFIGURASI API & SELECTOR ELEMENT
 // ========================================================
-// Berkat file netlify.toml, kita cukup memanggil rute relatif '/api/sensor'
 const API_URL = '/api/sensor';
+const API_LOG_SESI = '/api/log-sesi'; // Endpoint sesi baru
 
-// Mengambil referensi elemen HTML berdasarkan ID
 const suhuDisplay = document.getElementById('suhu-display');
 const lembapDisplay = document.getElementById('kelembapan-display');
 const ruanganDisplay = document.getElementById('ruangan-display');
 const waktuDisplay = document.getElementById('waktu-display');
 const statusBadge = document.getElementById('status-badge');
+const tableLogSesi = document.getElementById('tableLogSesi'); // Target tabel HTML histori sesi
 
 // ========================================================
-//  FUNGSI UTAMA: MENGAMBIL DATA DARI MONGO VIA NETLIFY
+//  FUNGSI: MENGAMBIL DATA SENSOR REALTIME
 // ========================================================
 async function ambilDataSensor() {
   try {
     const response = await fetch(API_URL);
+    if (!response.ok) throw new Error(`Status: ${response.status}`);
     
-    if (!response.ok) {
-      throw new Error(`Gagal merespon dengan status: ${response.status}`);
-    }
+    const arrayData = await response.json();
 
-    const data = await response.json();
-
-    // Jika data ditemukan (tidak null atau kosong)
-    if (data && data.suhu !== undefined) {
-      perbaruiTampilanDashboard(data);
+    // Karena API sekarang mengirim array data (20 data terakhir), kita ambil yang paling ujung/terbaru
+    if (Array.isArray(arrayData) && arrayData.length > 0) {
+      const dataTerbaru = arrayData[arrayData.length - 1]; 
+      perbaruiTampilanDashboard(dataTerbaru);
+    } else if (arrayData && arrayData.suhu !== undefined) {
+      perbaruiTampilanDashboard(arrayData);
     } else {
       tampilkanStatusMenunggu();
     }
   } catch (error) {
-    console.error('Error saat mengambil data dari cloud:', error);
+    console.error('Error saat mengambil data:', error);
     if (statusBadge) {
-      statusBadge.innerText = "❌ ERROR: PUTUS KONEKSI SERVER";
-      statusBadge.style.backgroundColor = "#ef4444"; // Merah
+      statusBadge.innerText = "❌ ERROR: PUTUS KONEKSI";
+      statusBadge.style.backgroundColor = "#ef4444"; 
     }
   }
 }
 
 // ========================================================
-//  FUNGSI MANIPULASI DOM (MENGUBAH TAMPILAN HTML)
+//  FUNGSI: MENGAMBIL HISTORI SESI ALAT
+// ========================================================
+async function ambilLogSesi() {
+  // Jika di HTML tidak ada tabelnya, hentikan eksekusi agar tidak muncul error di console
+  if (!tableLogSesi) return; 
+
+  try {
+    const response = await fetch(API_LOG_SESI);
+    const data = await response.json();
+    tableLogSesi.innerHTML = '';
+
+    if(data.length === 0) {
+      tableLogSesi.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Belum ada histori sesi terekam.</td></tr>';
+      return;
+    }
+
+    data.forEach(item => {
+      const isSesiAktif = !item.waktuSelesai;
+      const waktuSelesaiTeks = isSesiAktif ? '-' : new Date(item.waktuSelesai).toLocaleString('id-ID');
+      const waktuMulaiTeks = new Date(item.waktuMulai).toLocaleString('id-ID');
+      
+      const statusSesi = isSesiAktif 
+          ? '<span class="badge bg-primary"><i class="fa-solid fa-satellite-dish fa-beat me-1"></i>Alat Aktif</span>' 
+          : '<span class="badge bg-secondary">Sesi Selesai</span>';
+
+      tableLogSesi.innerHTML += `<tr>
+          <td>${waktuMulaiTeks}</td>
+          <td>${waktuSelesaiTeks}</td>
+          <td class="fw-medium">${item.durasi}</td>
+          <td class="fw-bold text-danger">${item.rataSuhu.toFixed(1)}</td>
+          <td>${statusSesi}</td>
+      </tr>`;
+    });
+  } catch (error) {
+    console.error("Gagal mengambil histori sesi:", error);
+    tableLogSesi.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Gagal memuat data sesi.</td></tr>';
+  }
+}
+
+// ========================================================
+//  FUNGSI MANIPULASI DOM
 // ========================================================
 function perbaruiTampilanDashboard(data) {
-  // 1. Update angka suhu dan kelembapan (dibulatkan 1 angka di belakang koma)
   if (suhuDisplay) suhuDisplay.innerText = parseFloat(data.suhu).toFixed(1);
   if (lembapDisplay) lembapDisplay.innerText = parseFloat(data.kelembapan).toFixed(1);
-  
-  // 2. Update nama ruangan dinamis dari database
   if (ruanganDisplay) ruanganDisplay.innerText = data.ruangan || "Ruang NICU (Default)";
 
-  // 3. Update waktu pembaruan terakhir di browser
   if (waktuDisplay) {
     const sekarang = new Date();
     const jam = String(sekarang.getHours()).padStart(2, '0');
@@ -59,16 +95,15 @@ function perbaruiTampilanDashboard(data) {
     waktuDisplay.innerText = `${jam}:${menit}:${detik} WIB`;
   }
 
-  // 4. Logika Indikator Alert Visual (Sesuai Ambang Batas ESP32: 35.0°C)
   if (statusBadge) {
     if (parseFloat(data.suhu) > 35.0) {
       statusBadge.innerText = "⚠️ WARNING: SUHU PANAS!";
-      statusBadge.style.backgroundColor = "#dc2626"; // Merah pekat
+      statusBadge.style.backgroundColor = "#dc2626"; 
       statusBadge.style.color = "#ffffff";
-      statusBadge.classList.add('animate-pulse'); // Efek berkedip jika Anda menggunakan Tailwind CSS
+      statusBadge.classList.add('animate-pulse'); 
     } else {
       statusBadge.innerText = "✅ STATUS: NORMAL";
-      statusBadge.style.backgroundColor = "#16a34a"; // Hijau
+      statusBadge.style.backgroundColor = "#16a34a"; 
       statusBadge.style.color = "#ffffff";
       statusBadge.classList.remove('animate-pulse');
     }
@@ -78,7 +113,7 @@ function perbaruiTampilanDashboard(data) {
 function tampilkanStatusMenunggu() {
   if (statusBadge) {
     statusBadge.innerText = "⏳ MENCARI DATA ESP32...";
-    statusBadge.style.backgroundColor = "#eab308"; // Kuning/Oranye
+    statusBadge.style.backgroundColor = "#eab308"; 
   }
 }
 
@@ -86,9 +121,12 @@ function tampilkanStatusMenunggu() {
 //  INSIALISASI OTOMATIS SAAT HALAMAN DIBUKA
 // ========================================================
 document.addEventListener('DOMContentLoaded', () => {
-  // Jalankan sekali di awal saat halaman selesai dimuat
   ambilDataSensor();
+  ambilLogSesi();
   
-  // Lakukan polling otomatis (refresh data) setiap 5 detik (5000 milidetik)
+  // Refresh data realtime setiap 5 detik
   setInterval(ambilDataSensor, 5000);
+
+  // Refresh histori sesi setiap 60 detik (tidak perlu secepat realtime)
+  setInterval(ambilLogSesi, 60000); 
 });
