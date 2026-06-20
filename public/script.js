@@ -257,12 +257,8 @@ setInterval(ambilLogSesi, 60000); // Refresh data sesi setiap 1 menit
 // ========================================================
 //  FUNGSI: EXPORT KE CSV
 // ========================================================
-document.getElementById('btnExport').addEventListener('click', () => {
-    if(dataHistori.length === 0) return alert("Data kosong!");
-    let csv = "data:text/csv;charset=utf-8,Timestamp,Ruangan,Suhu (C),Kelembapan (%)\r\n";
-    dataHistori.forEach(i => csv += `"${i.timestamp}","${i.ruangan}",${i.suhu},${i.kelembapan}\r\n`);
-    const link = document.createElement("a"); 
-    link.href = encodeURI(csv); 
-    link.download = `Log_Sensor_${new Date().toISOString().slice(0,10)}.csv`; 
-    link.click();
+document.getElementById('btnExport').addEventListener('click', async function() {
+    // Tombol export sekarang langsung mendownload dari endpoint /api/export-csv
+    // yang akan menarik SEMUA data dari MongoDB
+    window.location.href = '/api/export-csv';
 });

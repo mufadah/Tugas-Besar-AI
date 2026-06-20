@@ -144,4 +144,24 @@ function formatSession(session) {
 app.use('/api', router);
 app.use('/.netlify/functions/api', router);
 
+// Tambahkan rute ini di api.js
+router.get('/export-csv', async (req, res) => {
+  try {
+    // Ambil SEMUA data tanpa limit
+    const allData = await Sensor.find().sort({ waktu: 1 });
+    
+    // Format menjadi CSV string
+    let csv = "Timestamp,Ruangan,Suhu (C),Kelembapan (%)\n";
+    allData.forEach(row => {
+      csv += `${row.waktu.toISOString()},${row.ruangan},${row.suhu},${row.kelembapan}\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="Full_Log_NICU.csv"');
+    res.status(200).send(csv);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports.handler = serverless(app);
