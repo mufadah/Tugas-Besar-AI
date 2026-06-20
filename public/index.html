@@ -8,66 +8,25 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root {
-            --bg-body: #f1f5f9;
-            --bg-card: #ffffff;
-            --text-main: #334155;
-            --border-color: #e2e8f0;
-        }
-
-        [data-bs-theme="dark"] {
-            --bg-body: #0f172a;
-            --bg-card: #1e293b;
-            --text-main: #f8fafc;
-            --border-color: #334155;
-        }
-
-        body { 
-            background-color: var(--bg-body); 
-            color: var(--text-main);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-
-        .navbar-custom {
-            background-color: var(--bg-card) !important;
-            border-bottom: 1px solid var(--border-color);
-            transition: background-color 0.3s ease;
-        }
+        :root { --bg-body: #f1f5f9; --bg-card: #ffffff; --text-main: #334155; --border-color: #e2e8f0; }
+        [data-bs-theme="dark"] { --bg-body: #0f172a; --bg-card: #1e293b; --text-main: #f8fafc; --border-color: #334155; }
+        body { background-color: var(--bg-body); color: var(--text-main); font-family: 'Segoe UI', Tahoma, sans-serif; transition: background-color 0.3s, color 0.3s; }
+        .navbar-custom { background-color: var(--bg-card) !important; border-bottom: 1px solid var(--border-color); }
         .navbar-brand { font-weight: 700; color: #1e40af !important; }
         [data-bs-theme="dark"] .navbar-brand { color: #60a5fa !important; }
-
-        .card-custom { 
-            border: none; 
-            border-radius: 12px; 
-            background-color: var(--bg-card);
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); 
-            transition: transform 0.2s, background-color 0.3s ease; 
-        }
+        .card-custom { border: none; border-radius: 12px; background-color: var(--bg-card); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transition: transform 0.2s, background-color 0.3s; }
         .card-custom:hover { transform: translateY(-2px); }
         .temp-card { border-left: 5px solid #ef4444; }
         .hum-card { border-left: 5px solid #06b6d4; }
         .value-display { font-size: 2.75rem; font-weight: 700; line-height: 1; }
-        
-        .table-container { max-height: 350px; overflow-y: auto; border: 1px solid ; border-color: var(--border-color) !important; }
-        
-        .theme-toggle-btn {
-            background: transparent;
-            border: 2px solid var(--border-color);
-            color: var(--text-main);
-            border-radius: 50px;
-            padding: 5px 15px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
+        .table-container { max-height: 350px; overflow-y: auto; border: 1px solid var(--border-color); }
+        .theme-toggle-btn { background: transparent; border: 2px solid var(--border-color); color: var(--text-main); border-radius: 50px; padding: 5px 15px; transition: all 0.3s; }
         .theme-toggle-btn:hover { background-color: var(--border-color); }
-
         .status-badge { padding: 0.35em 0.65em; font-size: 0.75em; font-weight: 600; border-radius: 50rem; }
         [data-bs-theme="light"] .bg-normal { background-color: #dcfce7; color: #15803d; }
         [data-bs-theme="light"] .bg-warning-custom { background-color: #fef9c3; color: #a16207; }
         [data-bs-theme="light"] .bg-danger-custom { background-color: #fee2e2; color: #b91c1c; }
         [data-bs-theme="light"] .bg-active-session { background-color: #dbeafe; color: #1e40af; }
-        
         [data-bs-theme="dark"] .bg-normal { background-color: #065f46; color: #a7f3d0; }
         [data-bs-theme="dark"] .bg-warning-custom { background-color: #854d0e; color: #fef08a; }
         [data-bs-theme="dark"] .bg-danger-custom { background-color: #991b1b; color: #fecaca; }
@@ -78,14 +37,8 @@
 
     <nav class="navbar navbar-expand-lg navbar-custom py-3 mb-4">
         <div class="container d-flex justify-content-between align-items-center">
-            <a class="navbar-brand" href="#">
-                <i class="fa-solid fa-heart-pulse text-danger me-2"></i>Hospital IoT Monitoring
-            </a>
-            <div class="d-flex align-items-center gap-3">
-                <button id="themeToggle" class="theme-toggle-btn">
-                    <i class="fa-solid fa-moon me-1"></i> Mode
-                </button>
-            </div>
+            <a class="navbar-brand" href="#"><i class="fa-solid fa-heart-pulse text-danger me-2"></i>Hospital IoT Monitoring</a>
+            <button id="themeToggle" class="theme-toggle-btn"><i class="fa-solid fa-moon me-1"></i> Mode</button>
         </div>
     </nav>
 
@@ -95,9 +48,7 @@
                 <div class="card card-custom p-3 border-0">
                     <div class="d-flex align-items-center">
                         <h6 class="m-0 me-3 text-uppercase fw-bold text-muted">Status Alat ESP32:</h6>
-                        <span id="espStatus" class="badge bg-secondary px-3 py-2 fs-6">
-                            <i class="fa-solid fa-spinner fa-spin me-2"></i>Menunggu Data...
-                        </span>
+                        <span id="espStatus" class="badge bg-secondary px-3 py-2 fs-6"><i class="fa-solid fa-spinner fa-spin me-2"></i>Menunggu Data...</span>
                     </div>
                 </div>
             </div>
@@ -111,8 +62,7 @@
                         <i class="fa-solid fa-thermometer-half text-danger fs-4"></i>
                     </div>
                     <div class="d-flex align-items-baseline">
-                        <div class="value-display text-danger" id="liveTemp">--</div>
-                        <span class="fs-4 fw-medium text-secondary ms-1">°C</span>
+                        <div class="value-display text-danger" id="liveTemp">--</div><span class="fs-4 fw-medium text-secondary ms-1">°C</span>
                     </div>
                     <div class="mt-2 text-muted small"><i class="fa-solid fa-circle-info me-1"></i> Rentang Normal: 36.5°C - 37.5°C</div>
                 </div>
@@ -124,8 +74,7 @@
                         <i class="fa-solid fa-droplet text-info fs-4"></i>
                     </div>
                     <div class="d-flex align-items-baseline">
-                        <div class="value-display text-info" id="liveHum">--</div>
-                        <span class="fs-4 fw-medium text-secondary ms-1">%</span>
+                        <div class="value-display text-info" id="liveHum">--</div><span class="fs-4 fw-medium text-secondary ms-1">%</span>
                     </div>
                     <div class="mt-2 text-muted small"><i class="fa-solid fa-circle-info me-1"></i> Rentang Normal: 40% - 60%</div>
                 </div>
@@ -135,33 +84,23 @@
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card card-custom p-4">
-                    <h5 class="card-title mb-3 fw-bold"><i class="fa-solid fa-chart-line me-2 text-primary"></i>Grafik Tren Real-time (Polling)</h5>
-                    <div style="position: relative; height:300px; width:100%">
-                        <canvas id="realtimeChart"></canvas>
-                    </div>
+                    <h5 class="card-title mb-3 fw-bold"><i class="fa-solid fa-chart-line me-2 text-primary"></i>Grafik Tren Real-time</h5>
+                    <div style="position: relative; height:300px; width:100%"><canvas id="realtimeChart"></canvas></div>
                 </div>
             </div>
         </div>
 
-        <div class="row">
+        <div class="row mb-4">
             <div class="col-12">
                 <div class="card card-custom p-4">
                     <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-3 gap-2">
                         <h5 class="card-title m-0 fw-bold"><i class="fa-solid fa-clock-history me-2 text-primary"></i>Log Histori Data Terakhir</h5>
-                        <button class="btn btn-success btn-sm px-3 py-2 fw-semibold" id="btnExport">
-                            <i class="fa-solid fa-file-excel me-2"></i>Export CSV
-                        </button>
+                        <button class="btn btn-success btn-sm px-3 py-2 fw-semibold" id="btnExport"><i class="fa-solid fa-file-excel me-2"></i>Export CSV</button>
                     </div>
                     <div class="table-responsive table-container border rounded">
                         <table class="table table-hover align-middle mb-0">
                             <thead id="tableHead" class="table-light sticky-top">
-                                <tr>
-                                    <th>Waktu</th>
-                                    <th>Ruangan</th>
-                                    <th>Suhu (°C)</th>
-                                    <th>Kelembapan (%)</th>
-                                    <th>Status</th>
-                                </tr>
+                                <tr><th>Waktu</th><th>Ruangan</th><th>Suhu (°C)</th><th>Kelembapan (%)</th><th>Status</th></tr>
                             </thead>
                             <tbody id="tableBody">
                                 <tr><td colspan="5" class="text-center py-4 text-muted">Belum ada data terekam...</td></tr>
@@ -175,19 +114,11 @@
         <div class="row mt-4">
             <div class="col-12">
                 <div class="card card-custom p-4">
-                    <h5 class="card-title mb-3 fw-bold">
-                        <i class="fa-solid fa-network-wired me-2 text-primary"></i>Histori Sesi (Koneksi Alat)
-                    </h5>
+                    <h5 class="card-title mb-3 fw-bold"><i class="fa-solid fa-network-wired me-2 text-primary"></i>Histori Sesi (Klik untuk Detail)</h5>
                     <div class="table-responsive table-container border rounded">
                         <table class="table table-hover align-middle mb-0 text-center">
                             <thead class="table-light sticky-top">
-                                <tr>
-                                    <th>Mulai Sesi</th>
-                                    <th>Akhir Sesi</th>
-                                    <th>Durasi Aktif</th>
-                                    <th>Rata-rata Suhu (°C)</th>
-                                    <th>Status Sesi</th>
-                                </tr>
+                                <tr><th>Mulai Sesi</th><th>Akhir Sesi</th><th>Durasi Aktif</th><th>Rata Suhu (°C)</th><th>Status Sesi</th></tr>
                             </thead>
                             <tbody id="tableLogSesi">
                                 <tr><td colspan="5" class="text-center py-4 text-muted">Memuat data sesi...</td></tr>
@@ -199,220 +130,35 @@
         </div>
     </div>
 
-    <script>
-        // ==========================================
-        // 1. INISIALISASI VARIABEL & GRAFIK
-        // ==========================================
-        let dataHistori = [];
-        let waktuTerakhirUpdate = 0; 
-        const BATAS_OFFLINE = 20000; 
+    <div class="modal fade" id="modalDetailSesi" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content card-custom">
+                <div class="modal-header border-bottom border-secondary">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-magnifying-glass-chart text-primary me-2"></i>Detail Sesi Terpilih</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-4">Menampilkan rekam data dari: <span id="labelWaktuSesi" class="fw-bold text-primary"></span></p>
+                    <div style="position: relative; height:250px; width:100%" class="mb-4 border rounded p-2"><canvas id="chartDetailSesi"></canvas></div>
+                    <div class="table-responsive table-container border rounded">
+                        <table class="table table-hover align-middle mb-0 text-center">
+                            <thead class="table-light sticky-top">
+                                <tr><th>Waktu Log</th><th>Suhu (°C)</th><th>Kelembapan (%)</th><th>Status</th></tr>
+                            </thead>
+                            <tbody id="tableBodyDetailSesi">
+                                <tr><td colspan="4" class="text-muted py-4">Memuat data detail...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        const ctx = document.getElementById('realtimeChart').getContext('2d');
-        const configChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [
-                    { label: 'Suhu (°C)', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 3, tension: 0.3, fill: true, yAxisID: 'y' },
-                    { label: 'Kelembapan (%)', data: [], borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.1)', borderWidth: 3, tension: 0.3, fill: true, yAxisID: 'y1' }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                scales: {
-                    x: { ticks: { color: '#64748b' }, grid: { color: '#e2e8f0' } },
-                    y: { type: 'linear', position: 'left', title: { display: true, text: 'Suhu (°C)' }, ticks: { color: '#64748b' }, grid: { color: '#e2e8f0' } },
-                    y1: { type: 'linear', position: 'right', title: { display: true, text: 'Kelembapan (%)' }, ticks: { color: '#64748b' }, grid: { drawOnChartArea: false } }
-                },
-                plugins: { legend: { labels: { color: '#64748b' } } }
-            }
-        });
-
-        // ==========================================
-        // 2. LOGIKA DARK/LIGHT MODE
-        // ==========================================
-        const themeToggle = document.getElementById('themeToggle');
-        const htmlTag = document.documentElement;
-        const iconTheme = themeToggle.querySelector('i');
-        const tableHead = document.getElementById('tableHead');
-
-        function updateChartColors(theme) {
-            const textColor = theme === 'dark' ? '#94a3b8' : '#64748b';
-            const gridColor = theme === 'dark' ? '#334155' : '#e2e8f0';
-
-            configChart.options.scales.x.ticks.color = textColor;
-            configChart.options.scales.x.grid.color = gridColor;
-            configChart.options.scales.y.ticks.color = textColor;
-            configChart.options.scales.y.grid.color = gridColor;
-            configChart.options.scales.y1.ticks.color = textColor;
-            configChart.options.plugins.legend.labels.color = textColor;
-            configChart.update();
-        }
-
-        function terapkanTema(theme) {
-            htmlTag.setAttribute('data-bs-theme', theme);
-            if (theme === 'dark') {
-                iconTheme.className = 'fa-solid fa-sun me-1';
-                iconTheme.style.color = '#fbbf24';
-                tableHead.className = 'table-dark sticky-top';
-            } else {
-                iconTheme.className = 'fa-solid fa-moon me-1';
-                iconTheme.style.color = 'inherit';
-                tableHead.className = 'table-light sticky-top';
-            }
-            updateChartColors(theme);
-        }
-
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        terapkanTema(savedTheme);
-
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = htmlTag.getAttribute('data-bs-theme');
-            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            terapkanTema(newTheme);
-            localStorage.setItem('theme', newTheme);
-        });
-
-        // ==========================================
-        // 3. LOGIKA UNTUK MENANGKAP DATA & UPDATE UI
-        // ==========================================
-        function dapatkanStatus(suhu, kelembapan) {
-            if (suhu < 36.5 || suhu > 37.5 || kelembapan < 40 || kelembapan > 60) {
-                if (suhu > 38.0 || kelembapan < 30) return '<span class="status-badge bg-danger-custom">Kritis</span>';
-                return '<span class="status-badge bg-warning-custom">Peringatan</span>';
-            }
-            return '<span class="status-badge bg-normal">Normal</span>';
-        }
-
-        function updateDashboardUI() {
-            if (dataHistori.length === 0) return;
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = ''; 
-
-            [...dataHistori].reverse().forEach(item => {
-                tbody.innerHTML += `<tr>
-                    <td class="fw-medium text-muted">${item.timestamp}</td>
-                    <td>${item.ruangan}</td>
-                    <td class="fw-bold text-danger">${item.suhu}</td>
-                    <td class="fw-bold text-info">${item.kelembapan}</td>
-                    <td>${dapatkanStatus(item.suhu, item.kelembapan)}</td>
-                </tr>`;
-            });
-
-            const dataTerbaru = dataHistori[dataHistori.length - 1];
-            document.getElementById('liveTemp').innerText = dataTerbaru.suhu.toFixed(1);
-            document.getElementById('liveHum').innerText = dataTerbaru.kelembapan.toFixed(1);
-        }
-
-        function updateGrafik() {
-            configChart.data.labels = dataHistori.map(item => item.timestamp);
-            configChart.data.datasets[0].data = dataHistori.map(item => item.suhu);
-            configChart.data.datasets[1].data = dataHistori.map(item => item.kelembapan);
-            configChart.update();
-        }
-
-        // ==========================================
-        // 4. POLLING REFRESH DATA (Disesuaikan)
-        // ==========================================
-        async function pollDataSensor() {
-            try {
-                const response = await fetch('/api/sensor');
-                const arrayData = await response.json();
-
-                if (Array.isArray(arrayData) && arrayData.length > 0) {
-                    const dataPalingBaru = arrayData[arrayData.length - 1];
-                    waktuTerakhirUpdate = new Date(dataPalingBaru.waktu).getTime();
-
-                    dataHistori = arrayData.map(item => ({
-                        timestamp: new Date(item.waktu).toLocaleTimeString(),
-                        ruangan: item.ruangan,
-                        suhu: parseFloat(item.suhu),
-                        kelembapan: parseFloat(item.kelembapan)
-                    }));
-
-                    updateGrafik();
-                    updateDashboardUI();
-                }
-            } catch (error) {
-                console.error("Gagal polling data sensor:", error);
-            }
-        }
-
-        // 🔥 FUNGSI BARU UNTUK MENGAMBIL DATA SESI 🔥
-        async function ambilLogSesi() {
-            try {
-                // Menembak endpoint API baru yang menangani agregasi sesi
-                const response = await fetch('/api/log-sesi');
-                const data = await response.json();
-                const tbody = document.getElementById('tableLogSesi');
-                tbody.innerHTML = '';
-
-                if(data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Belum ada histori sesi terekam.</td></tr>';
-                    return;
-                }
-
-                data.forEach(item => {
-                    // Cek jika sesi belum ada waktu selesainya (artinya alat masih nyala sekarang)
-                    const isSesiAktif = !item.waktuSelesai;
-                    const waktuSelesaiTeks = isSesiAktif ? '-' : new Date(item.waktuSelesai).toLocaleString();
-                    const statusSesi = isSesiAktif 
-                        ? '<span class="status-badge bg-active-session"><i class="fa-solid fa-satellite-dish fa-beat me-1"></i>Sedang Berjalan</span>' 
-                        : '<span class="status-badge bg-secondary text-white">Sesi Selesai</span>';
-
-                    tbody.innerHTML += `<tr>
-                        <td>${new Date(item.waktuMulai).toLocaleString()}</td>
-                        <td>${waktuSelesaiTeks}</td>
-                        <td class="fw-medium">${item.durasi}</td>
-                        <td class="fw-bold text-danger">${item.rataSuhu.toFixed(1)}</td>
-                        <td>${statusSesi}</td>
-                    </tr>`;
-                });
-            } catch (e) {
-                console.error("Gagal mengambil histori sesi:", e);
-                document.getElementById('tableLogSesi').innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Gagal memuat data sesi.</td></tr>';
-            }
-        }
-
-        function cekStatusKoneksi() {
-            const statusBadge = document.getElementById('espStatus');
-            const sekarang = Date.now();
-
-            if (waktuTerakhirUpdate === 0) {
-                statusBadge.className = 'badge bg-secondary px-3 py-2 fs-6';
-                statusBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Menunggu Data...';
-            } else if (sekarang - waktuTerakhirUpdate > BATAS_OFFLINE) {
-                statusBadge.className = 'badge bg-danger px-3 py-2 fs-6';
-                statusBadge.innerHTML = '<i class="fa-solid fa-circle-xmark me-2"></i>Offline (Alat Terputus)';
-                document.getElementById('liveTemp').className = 'value-display text-muted';
-                document.getElementById('liveHum').className = 'value-display text-muted';
-            } else {
-                statusBadge.className = 'badge bg-success px-3 py-2 fs-6';
-                statusBadge.innerHTML = '<i class="fa-solid fa-wifi me-2"></i>Online (Terhubung)';
-                document.getElementById('liveTemp').className = 'value-display text-danger';
-                document.getElementById('liveHum').className = 'value-display text-info';
-            }
-        }
-
-        pollDataSensor();           
-        ambilLogSesi(); // Ganti fungsi pemanggilan awal
-
-        setInterval(pollDataSensor, 5000);       
-        setInterval(cekStatusKoneksi, 1000);     
-        setInterval(ambilLogSesi, 60000); // Segarkan tabel sesi setiap 1 menit
-
-        // ==========================================
-        // 5. EXPORT DATA KE CSV
-        // ==========================================
-        document.getElementById('btnExport').addEventListener('click', function() {
-            if(dataHistori.length === 0) { alert("Data kosong!"); return; }
-            let csvContent = "data:text/csv;charset=utf-8,Timestamp,Ruangan,Suhu (C),Kelembapan (%)\r\n";
-            dataHistori.forEach(item => { csvContent += `"${item.timestamp}","${item.ruangan}",${item.suhu},${item.kelembapan}\r\n`; });
-            const link = document.createElement("a");
-            link.href = encodeURI(csvContent);
-            link.download = `Log_Sensor_${new Date().toISOString().slice(0,10)}.csv`;
-            link.click();
-        });
-    </script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

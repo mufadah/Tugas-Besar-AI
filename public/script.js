@@ -1,132 +1,268 @@
 // ========================================================
-//  KONFIGURASI API & SELECTOR ELEMENT
+//  KONFIGURASI API & VARIABEL GLOBAL
 // ========================================================
 const API_URL = '/api/sensor';
-const API_LOG_SESI = '/api/log-sesi'; // Endpoint sesi baru
+const API_LOG_SESI = '/api/log-sesi';
 
-const suhuDisplay = document.getElementById('suhu-display');
-const lembapDisplay = document.getElementById('kelembapan-display');
-const ruanganDisplay = document.getElementById('ruangan-display');
-const waktuDisplay = document.getElementById('waktu-display');
-const statusBadge = document.getElementById('status-badge');
-const tableLogSesi = document.getElementById('tableLogSesi'); // Target tabel HTML histori sesi
+let dataHistori = [];
+let waktuTerakhirUpdate = 0; 
+const BATAS_OFFLINE = 20000; // 20 detik tanpa data baru = Offline
+let chartDetailInstance = null; // Menyimpan instance grafik pada modal
 
 // ========================================================
-//  FUNGSI: MENGAMBIL DATA SENSOR REALTIME
+//  INISIALISASI GRAFIK REALTIME (CHART.JS)
 // ========================================================
-async function ambilDataSensor() {
-  try {
-    const response = await fetch(API_URL);
-    if (!response.ok) throw new Error(`Status: ${response.status}`);
+const ctx = document.getElementById('realtimeChart').getContext('2d');
+const configChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [
+            { label: 'Suhu (°C)', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 3, tension: 0.3, fill: true, yAxisID: 'y' },
+            { label: 'Kelembapan (%)', data: [], borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.1)', borderWidth: 3, tension: 0.3, fill: true, yAxisID: 'y1' }
+        ]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+            x: { ticks: { color: '#64748b' }, grid: { color: '#e2e8f0' } },
+            y: { type: 'linear', position: 'left', ticks: { color: '#64748b' }, grid: { color: '#e2e8f0' } },
+            y1: { type: 'linear', position: 'right', ticks: { color: '#64748b' }, grid: { drawOnChartArea: false } }
+        },
+        plugins: { legend: { labels: { color: '#64748b' } } }
+    }
+});
+
+// ========================================================
+//  LOGIKA DARK/LIGHT MODE
+// ========================================================
+const themeToggle = document.getElementById('themeToggle');
+const htmlTag = document.documentElement;
+const iconTheme = themeToggle.querySelector('i');
+const tableHead = document.getElementById('tableHead');
+
+function terapkanTema(theme) {
+    htmlTag.setAttribute('data-bs-theme', theme);
+    iconTheme.className = theme === 'dark' ? 'fa-solid fa-sun me-1' : 'fa-solid fa-moon me-1';
+    iconTheme.style.color = theme === 'dark' ? '#fbbf24' : 'inherit';
+    tableHead.className = theme === 'dark' ? 'table-dark sticky-top' : 'table-light sticky-top';
     
-    const arrayData = await response.json();
+    const textColor = theme === 'dark' ? '#94a3b8' : '#64748b';
+    const gridColor = theme === 'dark' ? '#334155' : '#e2e8f0';
+    configChart.options.scales.x.ticks.color = textColor; configChart.options.scales.x.grid.color = gridColor;
+    configChart.options.scales.y.ticks.color = textColor; configChart.options.scales.y.grid.color = gridColor;
+    configChart.options.scales.y1.ticks.color = textColor; configChart.options.plugins.legend.labels.color = textColor;
+    configChart.update();
+}
 
-    // Karena API sekarang mengirim array data (20 data terakhir), kita ambil yang paling ujung/terbaru
-    if (Array.isArray(arrayData) && arrayData.length > 0) {
-      const dataTerbaru = arrayData[arrayData.length - 1]; 
-      perbaruiTampilanDashboard(dataTerbaru);
-    } else if (arrayData && arrayData.suhu !== undefined) {
-      perbaruiTampilanDashboard(arrayData);
-    } else {
-      tampilkanStatusMenunggu();
+terapkanTema(localStorage.getItem('theme') || 'light');
+themeToggle.addEventListener('click', () => {
+    const newTheme = htmlTag.getAttribute('data-bs-theme') === 'light' ? 'dark' : 'light';
+    terapkanTema(newTheme); localStorage.setItem('theme', newTheme);
+});
+
+// ========================================================
+//  FUNGSI BANTUAN STATUS VISUAL
+// ========================================================
+function dapatkanStatus(suhu, kelembapan) {
+    if (suhu < 36.5 || suhu > 37.5 || kelembapan < 40 || kelembapan > 60) {
+        if (suhu > 38.0 || kelembapan < 30) return '<span class="status-badge bg-danger-custom">Kritis</span>';
+        return '<span class="status-badge bg-warning-custom">Peringatan</span>';
     }
-  } catch (error) {
-    console.error('Error saat mengambil data:', error);
-    if (statusBadge) {
-      statusBadge.innerText = "❌ ERROR: PUTUS KONEKSI";
-      statusBadge.style.backgroundColor = "#ef4444"; 
-    }
-  }
+    return '<span class="status-badge bg-normal">Normal</span>';
 }
 
 // ========================================================
-//  FUNGSI: MENGAMBIL HISTORI SESI ALAT
+//  FUNGSI: MENGAMBIL DATA SENSOR REALTIME (POLLING)
+// ========================================================
+async function pollDataSensor() {
+    try {
+        const res = await fetch(API_URL);
+        const arrayData = await res.json();
+        
+        if (Array.isArray(arrayData) && arrayData.length > 0) {
+            const dataTerbaru = arrayData[arrayData.length - 1];
+            waktuTerakhirUpdate = new Date(dataTerbaru.waktu).getTime();
+            
+            // Format ulang data untuk grafik dan tabel
+            dataHistori = arrayData.map(i => ({ 
+                timestamp: new Date(i.waktu).toLocaleTimeString('id-ID'), 
+                ruangan: i.ruangan, 
+                suhu: parseFloat(i.suhu), 
+                kelembapan: parseFloat(i.kelembapan) 
+            }));
+            
+            // Update Grafik
+            configChart.data.labels = dataHistori.map(i => i.timestamp);
+            configChart.data.datasets[0].data = dataHistori.map(i => i.suhu);
+            configChart.data.datasets[1].data = dataHistori.map(i => i.kelembapan);
+            configChart.update();
+
+            // Update Tabel Log Terakhir
+            const tbody = document.getElementById('tableBody'); 
+            tbody.innerHTML = ''; 
+            [...dataHistori].reverse().forEach(i => {
+                tbody.innerHTML += `<tr>
+                    <td class="text-muted">${i.timestamp}</td>
+                    <td>${i.ruangan}</td>
+                    <td class="text-danger fw-bold">${i.suhu}</td>
+                    <td class="text-info fw-bold">${i.kelembapan}</td>
+                    <td>${dapatkanStatus(i.suhu, i.kelembapan)}</td>
+                </tr>`;
+            });
+            
+            // Update Angka Live di Kartu Atas
+            document.getElementById('liveTemp').innerText = dataTerbaru.suhu.toFixed(1);
+            document.getElementById('liveHum').innerText = dataTerbaru.kelembapan.toFixed(1);
+        }
+    } catch (e) { console.error("Error polling data:", e); }
+}
+
+// ========================================================
+//  FUNGSI: MENGAMBIL LOG HISTORI SESI
 // ========================================================
 async function ambilLogSesi() {
-  // Jika di HTML tidak ada tabelnya, hentikan eksekusi agar tidak muncul error di console
-  if (!tableLogSesi) return; 
+    try {
+        const res = await fetch(API_LOG_SESI);
+        const data = await res.json();
+        const tbody = document.getElementById('tableLogSesi'); 
+        tbody.innerHTML = '';
+        
+        if(data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-muted py-4">Belum ada sesi terekam.</td></tr>';
+            return;
+        }
 
-  try {
-    const response = await fetch(API_LOG_SESI);
-    const data = await response.json();
-    tableLogSesi.innerHTML = '';
-
-    if(data.length === 0) {
-      tableLogSesi.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Belum ada histori sesi terekam.</td></tr>';
-      return;
+        data.forEach(item => {
+            const isAktif = !item.waktuSelesai;
+            const endText = isAktif ? '-' : new Date(item.waktuSelesai).toLocaleString('id-ID');
+            const startText = new Date(item.waktuMulai).toLocaleString('id-ID');
+            const badge = isAktif 
+                ? '<span class="badge bg-primary"><i class="fa-solid fa-satellite-dish fa-beat me-1"></i>Alat Aktif</span>' 
+                : '<span class="badge bg-secondary">Sesi Selesai</span>';
+            
+            // Baris tabel ditambahkan event onClick untuk membuka modal
+            tbody.innerHTML += `<tr style="cursor: pointer; transition: background-color 0.2s;" class="hover-shadow" 
+                onclick="bukaDetailSesi('${item.waktuMulai}', '${item.waktuSelesai || 'null'}')">
+                <td>${startText}</td>
+                <td>${endText}</td>
+                <td class="fw-medium">${item.durasi}</td>
+                <td class="text-danger fw-bold">${item.rataSuhu.toFixed(1)}</td>
+                <td>${badge}</td>
+            </tr>`;
+        });
+    } catch (e) {
+        console.error("Gagal mengambil log sesi:", e);
     }
-
-    data.forEach(item => {
-      const isSesiAktif = !item.waktuSelesai;
-      const waktuSelesaiTeks = isSesiAktif ? '-' : new Date(item.waktuSelesai).toLocaleString('id-ID');
-      const waktuMulaiTeks = new Date(item.waktuMulai).toLocaleString('id-ID');
-      
-      const statusSesi = isSesiAktif 
-          ? '<span class="badge bg-primary"><i class="fa-solid fa-satellite-dish fa-beat me-1"></i>Alat Aktif</span>' 
-          : '<span class="badge bg-secondary">Sesi Selesai</span>';
-
-      tableLogSesi.innerHTML += `<tr>
-          <td>${waktuMulaiTeks}</td>
-          <td>${waktuSelesaiTeks}</td>
-          <td class="fw-medium">${item.durasi}</td>
-          <td class="fw-bold text-danger">${item.rataSuhu.toFixed(1)}</td>
-          <td>${statusSesi}</td>
-      </tr>`;
-    });
-  } catch (error) {
-    console.error("Gagal mengambil histori sesi:", error);
-    tableLogSesi.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Gagal memuat data sesi.</td></tr>';
-  }
 }
 
 // ========================================================
-//  FUNGSI MANIPULASI DOM
+//  FUNGSI: MEMBUKA MODAL DAN MENAMPILKAN DETAIL SESI
 // ========================================================
-function perbaruiTampilanDashboard(data) {
-  if (suhuDisplay) suhuDisplay.innerText = parseFloat(data.suhu).toFixed(1);
-  if (lembapDisplay) lembapDisplay.innerText = parseFloat(data.kelembapan).toFixed(1);
-  if (ruanganDisplay) ruanganDisplay.innerText = data.ruangan || "Ruang NICU (Default)";
+async function bukaDetailSesi(start, end) {
+    // Tampilkan Modal Bootstrap
+    const modalDetail = new bootstrap.Modal(document.getElementById('modalDetailSesi'));
+    modalDetail.show();
+    
+    const tbody = document.getElementById('tableBodyDetailSesi');
+    tbody.innerHTML = '<tr><td colspan="4" class="text-muted py-4"><i class="fa-solid fa-spinner fa-spin me-2"></i>Mengambil data detail...</td></tr>';
+    
+    // Ubah label tanggal
+    const endLabel = end !== 'null' ? new Date(end).toLocaleString('id-ID') : 'Sekarang (Berjalan)';
+    document.getElementById('labelWaktuSesi').innerText = `${new Date(start).toLocaleString('id-ID')} s/d ${endLabel}`;
 
-  if (waktuDisplay) {
-    const sekarang = new Date();
-    const jam = String(sekarang.getHours()).padStart(2, '0');
-    const menit = String(sekarang.getMinutes()).padStart(2, '0');
-    const detik = String(sekarang.getSeconds()).padStart(2, '0');
-    waktuDisplay.innerText = `${jam}:${menit}:${detik} WIB`;
-  }
+    try {
+        const res = await fetch(`/api/sensor-range?start=${start}&end=${end}`);
+        const dataDetail = await res.json();
+        tbody.innerHTML = '';
+        
+        const labels = [], dataSuhu = [], dataLembap = [];
+        
+        dataDetail.forEach(item => {
+            const time = new Date(item.waktu).toLocaleTimeString('id-ID');
+            labels.push(time); 
+            dataSuhu.push(item.suhu); 
+            dataLembap.push(item.kelembapan);
+            
+            tbody.innerHTML += `<tr>
+                <td class="text-muted">${time}</td>
+                <td class="text-danger fw-bold">${item.suhu.toFixed(1)}</td>
+                <td class="text-info fw-bold">${item.kelembapan.toFixed(1)}</td>
+                <td>${dapatkanStatus(item.suhu, item.kelembapan)}</td>
+            </tr>`;
+        });
 
-  if (statusBadge) {
-    if (parseFloat(data.suhu) > 35.0) {
-      statusBadge.innerText = "⚠️ WARNING: SUHU PANAS!";
-      statusBadge.style.backgroundColor = "#dc2626"; 
-      statusBadge.style.color = "#ffffff";
-      statusBadge.classList.add('animate-pulse'); 
-    } else {
-      statusBadge.innerText = "✅ STATUS: NORMAL";
-      statusBadge.style.backgroundColor = "#16a34a"; 
-      statusBadge.style.color = "#ffffff";
-      statusBadge.classList.remove('animate-pulse');
+        // Gambar ulang grafik di dalam modal
+        if (chartDetailInstance) {
+            chartDetailInstance.destroy();
+        }
+        
+        const ctxModal = document.getElementById('chartDetailSesi').getContext('2d');
+        chartDetailInstance = new Chart(ctxModal, {
+            type: 'line', 
+            data: { 
+                labels: labels, 
+                datasets: [
+                    { label: 'Suhu', data: dataSuhu, borderColor: '#ef4444', borderWidth: 2, tension: 0.1, pointRadius: 1 },
+                    { label: 'Lembap', data: dataLembap, borderColor: '#06b6d4', borderWidth: 2, tension: 0.1, yAxisID: 'y1', pointRadius: 1 }
+                ]
+            },
+            options: { 
+                responsive: true, maintainAspectRatio: false, 
+                interaction: { mode: 'index', intersect: false },
+                scales: { 
+                    y: { position: 'left' }, 
+                    y1: { position: 'right', grid: { drawOnChartArea: false } } 
+                } 
+            }
+        });
+    } catch (e) { 
+        tbody.innerHTML = '<tr><td colspan="4" class="text-danger py-4">Gagal memuat detail data dari server.</td></tr>'; 
     }
-  }
-}
-
-function tampilkanStatusMenunggu() {
-  if (statusBadge) {
-    statusBadge.innerText = "⏳ MENCARI DATA ESP32...";
-    statusBadge.style.backgroundColor = "#eab308"; 
-  }
 }
 
 // ========================================================
-//  INSIALISASI OTOMATIS SAAT HALAMAN DIBUKA
+//  FUNGSI: VALIDASI STATUS ALAT (ONLINE / OFFLINE)
 // ========================================================
-document.addEventListener('DOMContentLoaded', () => {
-  ambilDataSensor();
-  ambilLogSesi();
-  
-  // Refresh data realtime setiap 5 detik
-  setInterval(ambilDataSensor, 5000);
+function cekStatusKoneksi() {
+    const badge = document.getElementById('espStatus');
+    const sekarang = Date.now();
+    
+    if (waktuTerakhirUpdate === 0) { 
+        badge.className = 'badge bg-secondary px-3 py-2 fs-6'; 
+        badge.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Menunggu Data...'; 
+    } else if (sekarang - waktuTerakhirUpdate > BATAS_OFFLINE) { 
+        badge.className = 'badge bg-danger px-3 py-2 fs-6'; 
+        badge.innerHTML = '<i class="fa-solid fa-circle-xmark me-2"></i>Offline (Alat Terputus)'; 
+        document.getElementById('liveTemp').className = 'value-display text-muted'; 
+        document.getElementById('liveHum').className = 'value-display text-muted'; 
+    } else { 
+        badge.className = 'badge bg-success px-3 py-2 fs-6'; 
+        badge.innerHTML = '<i class="fa-solid fa-wifi me-2"></i>Online (Terhubung)'; 
+        document.getElementById('liveTemp').className = 'value-display text-danger'; 
+        document.getElementById('liveHum').className = 'value-display text-info'; 
+    }
+}
 
-  // Refresh histori sesi setiap 60 detik (tidak perlu secepat realtime)
-  setInterval(ambilLogSesi, 60000); 
+// ========================================================
+//  JALANKAN FUNGSI SECARA OTOMATIS
+// ========================================================
+pollDataSensor(); 
+ambilLogSesi();
+
+setInterval(pollDataSensor, 5000); // Refresh data realtime 5 detik
+setInterval(cekStatusKoneksi, 1000); // Cek status koneksi 1 detik
+setInterval(ambilLogSesi, 60000); // Refresh data sesi setiap 1 menit
+
+// ========================================================
+//  FUNGSI: EXPORT KE CSV
+// ========================================================
+document.getElementById('btnExport').addEventListener('click', () => {
+    if(dataHistori.length === 0) return alert("Data kosong!");
+    let csv = "data:text/csv;charset=utf-8,Timestamp,Ruangan,Suhu (C),Kelembapan (%)\r\n";
+    dataHistori.forEach(i => csv += `"${i.timestamp}","${i.ruangan}",${i.suhu},${i.kelembapan}\r\n`);
+    const link = document.createElement("a"); 
+    link.href = encodeURI(csv); 
+    link.download = `Log_Sensor_${new Date().toISOString().slice(0,10)}.csv`; 
+    link.click();
 });
