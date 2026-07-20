@@ -291,3 +291,26 @@ setInterval(ambilLogSesi, 60000); // Refresh data sesi setiap 1 menit
 document.getElementById('btnExport').addEventListener('click', async function() {
     window.location.href = '/api/export-csv';
 });
+
+// ========================================================
+//  FUNGSI: EXPORT GRAFIK KE GAMBAR (PNG)
+// ========================================================
+document.getElementById('btnExportChart').addEventListener('click', function() {
+    // Menyimpan background color sementara jika grafik transparan
+    const originalBg = configChart.canvas.style.backgroundColor;
+    configChart.canvas.style.backgroundColor = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? '#1e293b' : '#ffffff';
+    
+    // Konversi canvas ke base64 (Chart.js toBase64Image)
+    const imgURL = configChart.toBase64Image();
+    
+    // Kembalikan background aslinya
+    configChart.canvas.style.backgroundColor = originalBg;
+
+    // Buat elemen <a> sementara untuk mendownload gambar
+    const a = document.createElement('a');
+    a.href = imgURL;
+    a.download = `Grafik_Sensor_${currentRange}_${new Date().toISOString().slice(0, 10)}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+});

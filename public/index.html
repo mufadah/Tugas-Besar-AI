@@ -213,32 +213,16 @@
                             Grafik Monitoring Sensor
                         </h5>
 
-                        <div class="btn-group mt-3 mt-lg-0" role="group">
-
-                            <button class="btn btn-outline-primary btnFilter active" data-range="today">
-
-                                Hari Ini
-
+                        <div class="d-flex flex-wrap gap-2 mt-3 mt-lg-0 align-items-center">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-outline-primary btnFilter active" data-range="today">Hari Ini</button>
+                                <button class="btn btn-outline-primary btnFilter" data-range="7days">7 Hari</button>
+                                <button class="btn btn-outline-primary btnFilter" data-range="30days">30 Hari</button>
+                                <button class="btn btn-outline-primary btnFilter" data-range="all">Semua Data</button>
+                            </div>
+                            <button class="btn btn-outline-success" id="btnExportChart" title="Simpan sebagai Gambar">
+                                <i class="fa-solid fa-image me-1"></i> Export Grafik
                             </button>
-
-                            <button class="btn btn-outline-primary btnFilter" data-range="7days">
-
-                                7 Hari
-
-                            </button>
-
-                            <button class="btn btn-outline-primary btnFilter" data-range="30days">
-
-                                30 Hari
-
-                            </button>
-
-                            <button class="btn btn-outline-primary btnFilter" data-range="all">
-
-                                Semua Data
-
-                            </button>
-
                         </div>
 
                     </div>
