@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="id" data-bs-theme="light">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,36 +9,150 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg-body: #f1f5f9; --bg-card: #ffffff; --text-main: #334155; --border-color: #e2e8f0; }
-        [data-bs-theme="dark"] { --bg-body: #0f172a; --bg-card: #1e293b; --text-main: #f8fafc; --border-color: #334155; }
-        body { background-color: var(--bg-body); color: var(--text-main); font-family: 'Segoe UI', Tahoma, sans-serif; transition: background-color 0.3s, color 0.3s; }
-        .navbar-custom { background-color: var(--bg-card) !important; border-bottom: 1px solid var(--border-color); }
-        .navbar-brand { font-weight: 700; color: #1e40af !important; }
-        [data-bs-theme="dark"] .navbar-brand { color: #60a5fa !important; }
-        .card-custom { border: none; border-radius: 12px; background-color: var(--bg-card); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transition: transform 0.2s, background-color 0.3s; }
-        .card-custom:hover { transform: translateY(-2px); }
-        .temp-card { border-left: 5px solid #ef4444; }
-        .hum-card { border-left: 5px solid #06b6d4; }
-        .value-display { font-size: 2.75rem; font-weight: 700; line-height: 1; }
-        .table-container { max-height: 350px; overflow-y: auto; border: 1px solid var(--border-color); }
-        .theme-toggle-btn { background: transparent; border: 2px solid var(--border-color); color: var(--text-main); border-radius: 50px; padding: 5px 15px; transition: all 0.3s; }
-        .theme-toggle-btn:hover { background-color: var(--border-color); }
-        .status-badge { padding: 0.35em 0.65em; font-size: 0.75em; font-weight: 600; border-radius: 50rem; }
-        [data-bs-theme="light"] .bg-normal { background-color: #dcfce7; color: #15803d; }
-        [data-bs-theme="light"] .bg-warning-custom { background-color: #fef9c3; color: #a16207; }
-        [data-bs-theme="light"] .bg-danger-custom { background-color: #fee2e2; color: #b91c1c; }
-        [data-bs-theme="light"] .bg-active-session { background-color: #dbeafe; color: #1e40af; }
-        [data-bs-theme="dark"] .bg-normal { background-color: #065f46; color: #a7f3d0; }
-        [data-bs-theme="dark"] .bg-warning-custom { background-color: #854d0e; color: #fef08a; }
-        [data-bs-theme="dark"] .bg-danger-custom { background-color: #991b1b; color: #fecaca; }
-        [data-bs-theme="dark"] .bg-active-session { background-color: #1e3a8a; color: #bfdbfe; }
+        :root {
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --text-main: #334155;
+            --border-color: #e2e8f0;
+        }
+
+        [data-bs-theme="dark"] {
+            --bg-body: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --border-color: #334155;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .navbar-custom {
+            background-color: var(--bg-card) !important;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            color: #1e40af !important;
+        }
+
+        [data-bs-theme="dark"] .navbar-brand {
+            color: #60a5fa !important;
+        }
+
+        .card-custom {
+            border: none;
+            border-radius: 12px;
+            background-color: var(--bg-card);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s, background-color 0.3s;
+        }
+
+        .card-custom:hover {
+            transform: translateY(-2px);
+        }
+
+        .temp-card {
+            border-left: 5px solid #ef4444;
+        }
+
+        .hum-card {
+            border-left: 5px solid #06b6d4;
+        }
+
+        .value-display {
+            font-size: 2.75rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .table-container {
+            max-height: 350px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+        }
+
+        .theme-toggle-btn {
+            background: transparent;
+            border: 2px solid var(--border-color);
+            color: var(--text-main);
+            border-radius: 50px;
+            padding: 5px 15px;
+            transition: all 0.3s;
+        }
+
+        .theme-toggle-btn:hover {
+            background-color: var(--border-color);
+        }
+
+        .status-badge {
+            padding: 0.35em 0.65em;
+            font-size: 0.75em;
+            font-weight: 600;
+            border-radius: 50rem;
+        }
+
+        [data-bs-theme="light"] .bg-normal {
+            background-color: #dcfce7;
+            color: #15803d;
+        }
+
+        [data-bs-theme="light"] .bg-warning-custom {
+            background-color: #fef9c3;
+            color: #a16207;
+        }
+
+        [data-bs-theme="light"] .bg-danger-custom {
+            background-color: #fee2e2;
+            color: #b91c1c;
+        }
+
+        [data-bs-theme="light"] .bg-active-session {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        [data-bs-theme="dark"] .bg-normal {
+            background-color: #065f46;
+            color: #a7f3d0;
+        }
+
+        [data-bs-theme="dark"] .bg-warning-custom {
+            background-color: #854d0e;
+            color: #fef08a;
+        }
+
+        [data-bs-theme="dark"] .bg-danger-custom {
+            background-color: #991b1b;
+            color: #fecaca;
+        }
+
+        [data-bs-theme="dark"] .bg-active-session {
+            background-color: #1e3a8a;
+            color: #bfdbfe;
+        }
+
+        .btnFilter.active {
+            background: #0d6efd;
+            color: white;
+        }
+
+        .btnFilter {
+            min-width: 100px;
+        }
     </style>
 </head>
+
 <body>
 
     <nav class="navbar navbar-expand-lg navbar-custom py-3 mb-4">
         <div class="container d-flex justify-content-between align-items-center">
-            <a class="navbar-brand" href="#"><i class="fa-solid fa-heart-pulse text-danger me-2"></i>Hospital IoT Monitoring</a>
+            <a class="navbar-brand" href="#"><i class="fa-solid fa-heart-pulse text-danger me-2"></i>Hospital IoT
+                Monitoring</a>
             <button id="themeToggle" class="theme-toggle-btn"><i class="fa-solid fa-moon me-1"></i> Mode</button>
         </div>
     </nav>
@@ -48,7 +163,8 @@
                 <div class="card card-custom p-3 border-0">
                     <div class="d-flex align-items-center">
                         <h6 class="m-0 me-3 text-uppercase fw-bold text-muted">Status Alat ESP32:</h6>
-                        <span id="espStatus" class="badge bg-secondary px-3 py-2 fs-6"><i class="fa-solid fa-spinner fa-spin me-2"></i>Menunggu Data...</span>
+                        <span id="espStatus" class="badge bg-secondary px-3 py-2 fs-6"><i
+                                class="fa-solid fa-spinner fa-spin me-2"></i>Menunggu Data...</span>
                     </div>
                 </div>
             </div>
@@ -62,9 +178,11 @@
                         <i class="fa-solid fa-thermometer-half text-danger fs-4"></i>
                     </div>
                     <div class="d-flex align-items-baseline">
-                        <div class="value-display text-danger" id="liveTemp">--</div><span class="fs-4 fw-medium text-secondary ms-1">°C</span>
+                        <div class="value-display text-danger" id="liveTemp">--</div><span
+                            class="fs-4 fw-medium text-secondary ms-1">°C</span>
                     </div>
-                    <div class="mt-2 text-muted small"><i class="fa-solid fa-circle-info me-1"></i> Rentang Normal: 36.5°C - 37.5°C</div>
+                    <div class="mt-2 text-muted small"><i class="fa-solid fa-circle-info me-1"></i> Rentang Normal:
+                        36.5°C - 37.5°C</div>
                 </div>
             </div>
             <div class="col-md-6">
@@ -74,36 +192,93 @@
                         <i class="fa-solid fa-droplet text-info fs-4"></i>
                     </div>
                     <div class="d-flex align-items-baseline">
-                        <div class="value-display text-info" id="liveHum">--</div><span class="fs-4 fw-medium text-secondary ms-1">%</span>
+                        <div class="value-display text-info" id="liveHum">--</div><span
+                            class="fs-4 fw-medium text-secondary ms-1">%</span>
                     </div>
-                    <div class="mt-2 text-muted small"><i class="fa-solid fa-circle-info me-1"></i> Rentang Normal: 40% - 60%</div>
+                    <div class="mt-2 text-muted small"><i class="fa-solid fa-circle-info me-1"></i> Rentang Normal: 40%
+                        - 60%</div>
                 </div>
             </div>
         </div>
 
         <div class="row mb-4">
             <div class="col-12">
+
                 <div class="card card-custom p-4">
-                    <h5 class="card-title mb-3 fw-bold"><i class="fa-solid fa-chart-line me-2 text-primary"></i>Grafik Tren Real-time</h5>
-                    <div style="position: relative; height:300px; width:100%"><canvas id="realtimeChart"></canvas></div>
+
+                    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-3">
+
+                        <h5 class="card-title fw-bold m-0">
+                            <i class="fa-solid fa-chart-line me-2 text-primary"></i>
+                            Grafik Monitoring Sensor
+                        </h5>
+
+                        <div class="btn-group mt-3 mt-lg-0" role="group">
+
+                            <button class="btn btn-outline-primary btnFilter active" data-range="today">
+
+                                Hari Ini
+
+                            </button>
+
+                            <button class="btn btn-outline-primary btnFilter" data-range="7days">
+
+                                7 Hari
+
+                            </button>
+
+                            <button class="btn btn-outline-primary btnFilter" data-range="30days">
+
+                                30 Hari
+
+                            </button>
+
+                            <button class="btn btn-outline-primary btnFilter" data-range="all">
+
+                                Semua Data
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                    <div style="position:relative;height:400px;width:100%">
+
+                        <canvas id="realtimeChart"></canvas>
+
+                    </div>
+
                 </div>
+
             </div>
         </div>
 
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card card-custom p-4">
-                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-3 gap-2">
-                        <h5 class="card-title m-0 fw-bold"><i class="fa-solid fa-clock-history me-2 text-primary"></i>Log Histori Data Terakhir</h5>
-                        <button class="btn btn-success btn-sm px-3 py-2 fw-semibold" id="btnExport"><i class="fa-solid fa-file-excel me-2"></i>Export CSV</button>
+                    <div
+                        class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-3 gap-2">
+                        <h5 class="card-title m-0 fw-bold"><i
+                                class="fa-solid fa-clock-history me-2 text-primary"></i>Log Histori Data Terakhir</h5>
+                        <button class="btn btn-success btn-sm px-3 py-2 fw-semibold" id="btnExport"><i
+                                class="fa-solid fa-file-excel me-2"></i>Export CSV</button>
                     </div>
                     <div class="table-responsive table-container border rounded">
                         <table class="table table-hover align-middle mb-0">
                             <thead id="tableHead" class="table-light sticky-top">
-                                <tr><th>Waktu</th><th>Ruangan</th><th>Suhu (°C)</th><th>Kelembapan (%)</th><th>Status</th></tr>
+                                <tr>
+                                    <th>Waktu</th>
+                                    <th>Ruangan</th>
+                                    <th>Suhu (°C)</th>
+                                    <th>Kelembapan (%)</th>
+                                    <th>Status</th>
+                                </tr>
                             </thead>
                             <tbody id="tableBody">
-                                <tr><td colspan="5" class="text-center py-4 text-muted">Belum ada data terekam...</td></tr>
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">Belum ada data terekam...</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -114,14 +289,24 @@
         <div class="row mt-4">
             <div class="col-12">
                 <div class="card card-custom p-4">
-                    <h5 class="card-title mb-3 fw-bold"><i class="fa-solid fa-network-wired me-2 text-primary"></i>Histori Sesi (Klik untuk Detail)</h5>
+                    <h5 class="card-title mb-3 fw-bold"><i
+                            class="fa-solid fa-network-wired me-2 text-primary"></i>Histori Sesi (Klik untuk Detail)
+                    </h5>
                     <div class="table-responsive table-container border rounded">
                         <table class="table table-hover align-middle mb-0 text-center">
                             <thead class="table-light sticky-top">
-                                <tr><th>Mulai Sesi</th><th>Akhir Sesi</th><th>Durasi Aktif</th><th>Rata Suhu (°C)</th><th>Status Sesi</th></tr>
+                                <tr>
+                                    <th>Mulai Sesi</th>
+                                    <th>Akhir Sesi</th>
+                                    <th>Durasi Aktif</th>
+                                    <th>Rata Suhu (°C)</th>
+                                    <th>Status Sesi</th>
+                                </tr>
                             </thead>
                             <tbody id="tableLogSesi">
-                                <tr><td colspan="5" class="text-center py-4 text-muted">Memuat data sesi...</td></tr>
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">Memuat data sesi...</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -134,19 +319,29 @@
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content card-custom">
                 <div class="modal-header border-bottom border-secondary">
-                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-magnifying-glass-chart text-primary me-2"></i>Detail Sesi Terpilih</h5>
+                    <h5 class="modal-title fw-bold"><i
+                            class="fa-solid fa-magnifying-glass-chart text-primary me-2"></i>Detail Sesi Terpilih</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-muted mb-4">Menampilkan rekam data dari: <span id="labelWaktuSesi" class="fw-bold text-primary"></span></p>
-                    <div style="position: relative; height:250px; width:100%" class="mb-4 border rounded p-2"><canvas id="chartDetailSesi"></canvas></div>
+                    <p class="text-muted mb-4">Menampilkan rekam data dari: <span id="labelWaktuSesi"
+                            class="fw-bold text-primary"></span></p>
+                    <div style="position: relative; height:250px; width:100%" class="mb-4 border rounded p-2"><canvas
+                            id="chartDetailSesi"></canvas></div>
                     <div class="table-responsive table-container border rounded">
                         <table class="table table-hover align-middle mb-0 text-center">
                             <thead class="table-light sticky-top">
-                                <tr><th>Waktu Log</th><th>Suhu (°C)</th><th>Kelembapan (%)</th><th>Status</th></tr>
+                                <tr>
+                                    <th>Waktu Log</th>
+                                    <th>Suhu (°C)</th>
+                                    <th>Kelembapan (%)</th>
+                                    <th>Status</th>
+                                </tr>
                             </thead>
                             <tbody id="tableBodyDetailSesi">
-                                <tr><td colspan="4" class="text-muted py-4">Memuat data detail...</td></tr>
+                                <tr>
+                                    <td colspan="4" class="text-muted py-4">Memuat data detail...</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -158,7 +353,8 @@
         </div>
     </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="script.js"></script>
 </body>
+
 </html>

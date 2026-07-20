@@ -141,6 +141,44 @@ function formatSession(session) {
   return { waktuMulai: session.waktuMulai, waktuSelesai: session.waktuSelesai, durasi: durasiStr, rataSuhu: avgSuhu };
 }
 
+router.get('/chart', async (req, res) => {
+  try {
+
+    const range = req.query.range || "today";
+
+    let startDate = new Date();
+
+    switch (range) {
+
+      case "7days":
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+
+      case "30days":
+        startDate.setDate(startDate.getDate() - 30);
+        break;
+
+      case "all":
+        startDate = new Date("2000-01-01");
+        break;
+
+      default: // today
+        startDate.setHours(0,0,0,0);
+    }
+
+    const data = await Sensor.find({
+      waktu: { $gte: startDate }
+    }).sort({ waktu: 1 });
+
+    res.json(data);
+
+  } catch(err){
+    res.status(500).json({
+      error: err.message
+    });
+  }
+});
+
 app.use('/api', router);
 app.use('/.netlify/functions/api', router);
 

@@ -3,11 +3,13 @@
 // ========================================================
 const API_URL = '/api/sensor';
 const API_LOG_SESI = '/api/log-sesi';
+const API_CHART = '/api/chart';
 
 let dataHistori = [];
 let waktuTerakhirUpdate = 0; 
 const BATAS_OFFLINE = 20000; // 20 detik tanpa data baru = Offline
 let chartDetailInstance = null; // Menyimpan instance grafik pada modal
+let currentRange = "today";
 
 // ========================================================
 //  INISIALISASI GRAFIK REALTIME (CHART.JS)
@@ -92,12 +94,7 @@ async function pollDataSensor() {
                 kelembapan: parseFloat(i.kelembapan) 
             }));
             
-            // Update Grafik
-            configChart.data.labels = dataHistori.map(i => i.timestamp);
-            configChart.data.datasets[0].data = dataHistori.map(i => i.suhu);
-            configChart.data.datasets[1].data = dataHistori.map(i => i.kelembapan);
-            configChart.update();
-
+            // Update Grafik dihapus, hanya untuk realtime card/tabel
             // Update Tabel Log Terakhir
             const tbody = document.getElementById('tableBody'); 
             tbody.innerHTML = ''; 
@@ -245,10 +242,44 @@ function cekStatusKoneksi() {
 }
 
 // ========================================================
+//  FUNGSI: MEMUAT GRAFIK BERDASARKAN RENTANG WAKTU
+// ========================================================
+async function loadChart(range) {
+    try {
+        const res = await fetch(`${API_CHART}?range=${range}`);
+        const data = await res.json();
+
+        if (Array.isArray(data)) {
+            configChart.data.labels = data.map(i => new Date(i.waktu).toLocaleTimeString('id-ID'));
+            configChart.data.datasets[0].data = data.map(i => i.suhu);
+            configChart.data.datasets[1].data = data.map(i => i.kelembapan);
+            configChart.update();
+        }
+    } catch (e) {
+        console.error("Gagal memuat grafik:", e);
+    }
+}
+
+// ========================================================
+//  EVENT LISTENER: TOMBOL FILTER GRAFIK
+// ========================================================
+document.querySelectorAll(".btnFilter").forEach(btn => {
+    btn.addEventListener("click", function() {
+        document.querySelectorAll(".btnFilter").forEach(b => b.classList.remove("active"));
+        this.classList.add("active");
+        
+        currentRange = this.getAttribute("data-range");
+        loadChart(currentRange);
+    });
+});
+
+// ========================================================
 //  JALANKAN FUNGSI SECARA OTOMATIS
 // ========================================================
-pollDataSensor(); 
+pollDataSensor();
+loadChart(currentRange);
 ambilLogSesi();
+cekStatusKoneksi();
 
 setInterval(pollDataSensor, 5000); // Refresh data realtime 5 detik
 setInterval(cekStatusKoneksi, 1000); // Cek status koneksi 1 detik
@@ -258,7 +289,5 @@ setInterval(ambilLogSesi, 60000); // Refresh data sesi setiap 1 menit
 //  FUNGSI: EXPORT KE CSV
 // ========================================================
 document.getElementById('btnExport').addEventListener('click', async function() {
-    // Tombol export sekarang langsung mendownload dari endpoint /api/export-csv
-    // yang akan menarik SEMUA data dari MongoDB
     window.location.href = '/api/export-csv';
 });
